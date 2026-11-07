@@ -1,5 +1,5 @@
 <p align="center">
-  <h1 align="center">⚡ Assisted Autocataloguing Plugin</h1>
+  <h1 align="center">⚡ Assisted Autocataloguing Plugin Slims</h1>
   <p align="center">
     <strong>Copy Cataloguing Cerdas Berbantuan AI & Verifikasi Bukti Fisik Buku untuk SLiMS 9 Bulian</strong>
   </p>
