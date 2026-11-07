@@ -99,23 +99,49 @@ assisted_autocatalogging/
 
 ## 4. Petunjuk Instalasi
 
-### Cara 1: Menggunakan Directory Junction / Symlink (Direkomendasikan untuk Development)
-Buka Command Prompt atau PowerShell sebagai Administrator:
-```powershell
-cmd /c mklink /J "D:\laragon\www\slims9_bulian-9.8.0\plugins\assisted_autocatalogging" "d:\Development\Assisted Autocatalogging"
+Tentukan letak direktori instalasi SLiMS di server Anda (selanjutnya disebut sebagai `<slims_root>`, contoh: `/var/www/html/slims` di Linux, atau `C:\xampp\htdocs\slims` di Windows).
+
+### Cara 1: Menggunakan Git Clone (Direkomendasikan untuk Server & VPS)
+Buka terminal server dan jalankan perintah berikut:
+```bash
+# Masuk ke direktori plugins SLiMS
+cd <slims_root>/plugins/
+
+# Clone repositori ke folder assisted_autocatalogging
+git clone https://github.com/AhmadNadaStudent/Assisted-Autocatalogging-Slims.git assisted_autocatalogging
 ```
 
-### Cara 2: Salin Manual ke Folder Plugin SLiMS
-1. Salin seluruh folder `Assisted Autocatalogging` ke dalam direktori:
-   `<slims_root>/plugins/assisted_autocatalogging/`
-2. Pastikan file entry point berada di:
-   `<slims_root>/plugins/assisted_autocatalogging/assisted_autocatalogging.plugin.php`
+### Cara 2: Ekstrak Berkas ZIP / Rilis
+1. Unduh arsip `assisted_autocatalogging-v1.0.0.zip` dari halaman [Releases](https://github.com/AhmadNadaStudent/Assisted-Autocatalogging-Slims/releases).
+2. Ekstrak berkas ZIP ke dalam direktori:
+   ```text
+   <slims_root>/plugins/assisted_autocatalogging/
+   ```
+3. Pastikan struktur berkas memiliki file utama di:
+   ```text
+   <slims_root>/plugins/assisted_autocatalogging/assisted_autocatalogging.plugin.php
+   ```
 
-### Mengaktifkan Plugin di SLiMS:
+### Cara 3: Mode Development (Symlink / Directory Junction)
+Bila Anda mengembangkan plugin pada folder lokal terpisah:
+- **Di Linux / macOS**:
+  ```bash
+  ln -s /path/ke/folder_project/ <slims_root>/plugins/assisted_autocatalogging
+  ```
+- **Di Windows (CMD / PowerShell sebagai Administrator)**:
+  ```powershell
+  cmd /c mklink /J "<slims_root>\plugins\assisted_autocatalogging" "<path_ke_folder_project>"
+  ```
+
+### Mengaktifkan Plugin di Admin SLiMS:
 1. Masuk ke halaman admin SLiMS (`admin/index.php`) sebagai Administrator.
-2. Buka menu **Sistem** -> **Plugins**.
+2. Buka menu **Sistem** (*System*) -> **Plugin** (*Plugins*).
 3. Temukan **Assisted Autocataloguing** pada daftar plugin, lalu klik tombol **Aktifkan**.
 4. Menu **Assisted Autocataloguing** akan langsung muncul di bawah modul **Bibliografi** di menu kiri admin SLiMS.
+5. Pastikan folder `storage/uploads` memiliki izin tulis (*write permission*) pada server:
+   ```bash
+   chmod -R 775 <slims_root>/plugins/assisted_autocatalogging/storage/
+   ```
 
 ---
 
