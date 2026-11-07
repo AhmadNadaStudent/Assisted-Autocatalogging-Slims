@@ -59,6 +59,7 @@ class OpenAiCompatibleAdapter implements AiProviderInterface
                 ['role' => 'system', 'content' => $systemPrompt],
                 ['role' => 'user', 'content' => $userPrompt],
             ],
+            'stream' => false,
             'response_format' => ['type' => 'json_object'],
             'temperature' => $options['temperature'] ?? 0.1,
         ];
@@ -92,8 +93,39 @@ class OpenAiCompatibleAdapter implements AiProviderInterface
             ];
         }
 
+        $content = '';
         $decoded = @json_decode($response, true);
-        $content = $decoded['choices'][0]['message']['content'] ?? '';
+        if (is_array($decoded)) {
+            $content = $decoded['choices'][0]['message']['content'] ?? '';
+            // If content is empty, check reasoning_content (used by reasoning models)
+            if (empty($content) && !empty($decoded['choices'][0]['message']['reasoning_content'])) {
+                $content = $decoded['choices'][0]['message']['reasoning_content'];
+            }
+        } elseif (str_contains($response, 'data:')) {
+            // Parse Server-Sent Events (SSE) stream chunks if proxy streams output
+            $lines = explode("\n", $response);
+            $streamedContent = '';
+            $reasoningContent = '';
+            foreach ($lines as $line) {
+                $line = trim($line);
+                if (str_starts_with($line, 'data:')) {
+                    $jsonStr = trim(substr($line, 5));
+                    if ($jsonStr === '[DONE]') {
+                        continue;
+                    }
+                    $chunk = @json_decode($jsonStr, true);
+                    if (is_array($chunk) && isset($chunk['choices'][0]['delta'])) {
+                        $delta = $chunk['choices'][0]['delta'];
+                        if (isset($delta['content'])) {
+                            $streamedContent .= $delta['content'];
+                        } elseif (isset($delta['reasoning_content'])) {
+                            $reasoningContent .= $delta['reasoning_content'];
+                        }
+                    }
+                }
+            }
+            $content = !empty($streamedContent) ? $streamedContent : $reasoningContent;
+        }
         
         // Remove <think>...</think> blocks if model uses internal chain of thought
         $cleanContent = preg_replace('/<think>.*?<\/think>/is', '', $content);
