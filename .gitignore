@@ -1,0 +1,27 @@
+# Local active configuration (contains local paths or private API keys)
+config/config.php
+
+# Storage uploads and logs (preserve directory structure and security)
+storage/uploads/*
+!storage/uploads/.gitkeep
+!storage/uploads/index.html
+!storage/uploads/thumbs/
+storage/uploads/thumbs/*
+!storage/uploads/thumbs/.gitkeep
+!storage/uploads/thumbs/index.html
+storage/logs/*
+!storage/logs/.gitkeep
+!storage/logs/index.html
+
+# Archives and build artifacts
+*.zip
+*.tar.gz
+
+# System & IDE files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Internal prompt spec
+MASTER PROMPT.md

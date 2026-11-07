@@ -1,0 +1,6 @@
+# Prevent direct script execution
+<FilesMatch "\.(php|phtml|php[0-9]|phps|phar|sh|py|cgi|pl)$">
+    Order Deny,Allow
+    Deny from all
+</FilesMatch>
+Options -Indexes
