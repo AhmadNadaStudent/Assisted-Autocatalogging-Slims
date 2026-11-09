@@ -1,0 +1,42 @@
+name: Release Plugin Package
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build SLiMS Plugin ZIP
+        run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          mkdir -p staging/assisted_autocatalogging
+          cp -r assets docs src templates api.php index.php assisted_autocatalogging.plugin.php README.md staging/assisted_autocatalogging/
+          mkdir -p staging/assisted_autocatalogging/config
+          cp config/config.default.php staging/assisted_autocatalogging/config/
+          mkdir -p staging/assisted_autocatalogging/storage/{logs,uploads/thumbs}
+          cp storage/index.html staging/assisted_autocatalogging/storage/
+          cp storage/logs/index.html staging/assisted_autocatalogging/storage/logs/
+          cp storage/uploads/index.html staging/assisted_autocatalogging/storage/uploads/
+          cp storage/uploads/thumbs/index.html staging/assisted_autocatalogging/storage/uploads/thumbs/
+
+          cd staging
+          zip -r "../assisted_autocatalogging-${TAG_NAME}.zip" assisted_autocatalogging
+          cd ..
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Release ${{ github.ref_name }}
+          files: assisted_autocatalogging-${{ github.ref_name }}.zip
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
