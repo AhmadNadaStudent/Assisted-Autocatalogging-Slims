@@ -1389,3 +1389,124 @@
   }
 }
 
+
+/* -------------------------------------------------------------
+ * V3.3 Simplified UI Components
+ * ----------------------------------------------------------- */
+
+/* Integrated Mini Book Card in ISBN Panel */
+.aac-gbooks-mini-card {
+  margin-top: 0.85rem;
+  padding: 0.75rem;
+  background: #f8fafc;
+  border: 1px solid var(--aac-border);
+  border-radius: var(--aac-radius-md);
+  animation: aac-modal-pop 0.2s ease;
+}
+
+.aac-gbooks-mini-body {
+  display: flex;
+  gap: 0.85rem;
+  align-items: center;
+}
+
+.aac-gbooks-mini-img {
+  width: 52px;
+  height: 74px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--aac-border);
+  box-shadow: var(--aac-shadow-sm);
+  background: #fff;
+  flex-shrink: 0;
+}
+
+.aac-gbooks-mini-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.aac-gbooks-mini-title {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--aac-text);
+  line-height: 1.3;
+  margin-bottom: 0.25rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aac-gbooks-mini-desc {
+  font-size: 0.72rem;
+  color: var(--aac-text-muted);
+  line-height: 1.35;
+}
+
+/* Inline Mini Stat Pills in Header */
+.aac-inline-stats {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.aac-mini-pill {
+  font-size: 0.7rem;
+  font-weight: 500;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
+  line-height: 1.2;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border: 1px solid transparent;
+}
+
+.aac-mini-pill.is-verified {
+  background: var(--aac-success-light);
+  color: var(--aac-success);
+  border-color: #bbf7d0;
+}
+
+.aac-mini-pill.is-conflict {
+  background: var(--aac-warning-light);
+  color: var(--aac-warning);
+  border-color: #fde68a;
+}
+
+.aac-mini-pill.is-unverified {
+  background: #f1f5f9;
+  color: var(--aac-text-muted);
+  border-color: var(--aac-border);
+}
+
+/* Integrated Table Footer Action Bar */
+.aac-table-footer-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--aac-border-light);
+  flex-wrap: wrap;
+}
+
+.aac-footer-info {
+  flex: 1;
+  min-width: 200px;
+}
+
+.aac-footer-action {
+  flex-shrink: 0;
+}
+
+/* Collapsible Bukti Fisik */
+.aac-collapsible-header:hover {
+  color: var(--aac-primary);
+}
+
+/* Extra fields divider button */
+.aac-extra-fields-row td {
+  background: #f8fafc !important;
+}

@@ -76,6 +76,7 @@ switch ($action) {
         Response::success('Status sistem berhasil dimuat', [
             'catalog' => $catalogMgr->testProviders(),
             'ocr' => $ocrService->getEngineStatus(),
+            'ocr_driver' => $app->getConfig('ocr.driver', 'auto'),
             'ai_mode' => $app->getConfig('ai.mode', 'local_only'),
             'ai_status' => $aiStatus,
             'ai_model' => $aiModel,
@@ -165,7 +166,7 @@ switch ($action) {
         // Add to session evidence
         $_SESSION['aac_state']['evidence'][] = $uploadResult;
 
-        Response::success('Gambar berhasil diunggah dan dianalisis OCR', [
+        Response::success('Gambar berhasil diunggah', [
             'evidence' => $uploadResult,
             'all_evidence' => $_SESSION['aac_state']['evidence'],
         ]);
@@ -518,6 +519,32 @@ switch ($action) {
             $testRes = $adapter->testConnection();
             Response::success('Hasil tes Cloud AI', $testRes);
         }
+        break;
+
+    case 'update_evidence_ocr':
+        $evidenceId = $request->post('evidence_id');
+        $ocrText = $request->post('ocr_text', '');
+        if (empty($evidenceId) || empty($_SESSION['aac_state']['evidence'])) {
+            Response::error('ID bukti tidak valid');
+        }
+
+        $allEvidence = &$_SESSION['aac_state']['evidence'];
+        $found = false;
+        foreach ($allEvidence as &$ev) {
+            if (($ev['evidence_id'] ?? '') === $evidenceId) {
+                $ev['ocr_text'] = trim($ocrText);
+                $ev['ocr_status'] = !empty(trim($ocrText)) ? 'completed' : 'empty';
+                $found = true;
+                break;
+            }
+        }
+        if (!$found) {
+            Response::error('Bukti fisik tidak ditemukan dalam sesi');
+        }
+
+        Response::success('Teks bukti fisik berhasil diperbarui', [
+            'all_evidence' => $allEvidence,
+        ]);
         break;
 
     case 'delete_evidence':

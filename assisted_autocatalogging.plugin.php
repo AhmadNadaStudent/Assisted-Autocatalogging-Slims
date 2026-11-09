@@ -3,7 +3,7 @@
  * Plugin Name: Assisted Autocataloguing
  * Plugin URI: https://github.com/AhmadNadaStudent/Assisted-Autocatalogging-Slims
  * Description: Plugin copy cataloguing cerdas berbantuan AI dan OCR untuk SLiMS 9 Bulian dengan verifikasi bukti fisik buku dan integrasi Perpustakaan Nasional.
- * Version: 1.0.0
+ * Version: 1.1.0
  * Author: Nekodan & Antigravity
  * Author URI: https://slims.web.id
  */

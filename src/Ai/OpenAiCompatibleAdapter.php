@@ -52,35 +52,71 @@ class OpenAiCompatibleAdapter implements AiProviderInterface
 
         $url = $this->baseUrl . '/chat/completions';
         $model = $options['model'] ?? $this->model;
+        $images = $options['images'] ?? []; // Array of base64 data URIs or base64 strings
+
+        // Construct user message content: either string or array of parts (text + images)
+        if (!empty($images) && is_array($images)) {
+            $userContentParts = [
+                ['type' => 'text', 'text' => $userPrompt]
+            ];
+            foreach ($images as $img) {
+                $dataUri = str_starts_with($img, 'data:') ? $img : ('data:image/jpeg;base64,' . $img);
+                $userContentParts[] = [
+                    'type' => 'image_url',
+                    'image_url' => [
+                        'url' => $dataUri,
+                    ],
+                ];
+            }
+            $userMessage = ['role' => 'user', 'content' => $userContentParts];
+        } else {
+            $userMessage = ['role' => 'user', 'content' => $userPrompt];
+        }
 
         $payload = [
             'model' => $model,
             'messages' => [
                 ['role' => 'system', 'content' => $systemPrompt],
-                ['role' => 'user', 'content' => $userPrompt],
+                $userMessage,
             ],
             'stream' => false,
             'response_format' => ['type' => 'json_object'],
             'temperature' => $options['temperature'] ?? 0.1,
         ];
 
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => json_encode($payload),
-            CURLOPT_TIMEOUT => $this->timeout,
-            CURLOPT_HTTPHEADER => [
-                'Content-Type: application/json',
-                'Authorization: Bearer ' . $apiKey,
-            ],
-            CURLOPT_SSL_VERIFYPEER => false,
-        ]);
+        $execCall = function(array $data) use ($url, $apiKey) {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => json_encode($data),
+                CURLOPT_TIMEOUT => $this->timeout,
+                CURLOPT_HTTPHEADER => [
+                    'Content-Type: application/json',
+                    'Authorization: Bearer ' . $apiKey,
+                ],
+                CURLOPT_SSL_VERIFYPEER => false,
+            ]);
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlError = curl_error($ch);
+            curl_close($ch);
+            return [$response, $httpCode, $curlError];
+        };
 
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $curlError = curl_error($ch);
-        curl_close($ch);
+        list($response, $httpCode, $curlError) = $execCall($payload);
+
+        // Fallback 1: If json_object mode fails (some models do not support response_format: json_object)
+        if (($response === false || $httpCode !== 200) && isset($payload['response_format'])) {
+            unset($payload['response_format']);
+            list($response, $httpCode, $curlError) = $execCall($payload);
+        }
+
+        // Fallback 2: If image_url causes an error (model is text-only), fallback to text-only prompt
+        if (($response === false || $httpCode !== 200) && !empty($images)) {
+            $payload['messages'][1] = ['role' => 'user', 'content' => $userPrompt];
+            list($response, $httpCode, $curlError) = $execCall($payload);
+        }
 
         if ($response === false || $httpCode !== 200) {
             $errData = @json_decode($response ?: '', true);
@@ -169,6 +205,7 @@ class OpenAiCompatibleAdapter implements AiProviderInterface
         ]);
         $response = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
         curl_close($ch);
 
         if ($httpCode === 200) {

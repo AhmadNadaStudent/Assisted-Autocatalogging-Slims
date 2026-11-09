@@ -16,6 +16,8 @@ storage/logs/*
 # Archives and build artifacts
 *.zip
 *.tar.gz
+!packages/*.zip
+!assisted_autocatalogging-*.zip
 
 # System & IDE files
 .DS_Store

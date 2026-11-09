@@ -54,7 +54,6 @@ class OcrService
 
         // Generate safe unique filename
         $ext = pathinfo($fileInfo['name'], PATHINFO_EXTENSION);
-        $safeBase = Security::sanitizeFileName(pathinfo($fileInfo['name'], PATHINFO_FILENAME));
         $uniqueId = bin2hex(random_bytes(8));
         $savedFileName = 'page_' . date('Ymd_His') . '_' . $uniqueId . '.' . strtolower($ext ?: 'jpg');
         $savedFilePath = $this->uploadDir . '/' . $savedFileName;
@@ -76,9 +75,20 @@ class OcrService
         $ocrReadyPath = $this->uploadDir . '/ocr_' . $uniqueId . '.jpg';
         $this->preprocessor->preprocessForOcr($savedFilePath, $ocrReadyPath);
 
-        // Perform OCR
+        $driver = $this->app->getConfig('ocr.driver', 'auto');
         $evidenceId = 'evidence-' . $uniqueId;
-        $ocrResult = $this->runOcr($ocrReadyPath);
+        $ocrResult = ['success' => false, 'text' => '', 'engine' => 'none', 'error' => null];
+
+        if ($driver !== 'vision_ai') {
+            $ocrResult = $this->runOcr($ocrReadyPath);
+        }
+
+        $ocrStatus = 'empty';
+        if ($ocrResult['success'] && !empty(trim($ocrResult['text']))) {
+            $ocrStatus = 'completed';
+        } elseif ($driver === 'vision_ai' || in_array($driver, ['auto', 'vision_ai'])) {
+            $ocrStatus = 'ready_for_vision';
+        }
 
         return [
             'success' => true,
@@ -89,7 +99,7 @@ class OcrService
             'thumb_name' => $thumbFileName,
             'page_type' => $pageType,
             'ocr_text' => $ocrResult['text'],
-            'ocr_status' => $ocrResult['success'] ? 'completed' : 'empty',
+            'ocr_status' => $ocrStatus,
             'engine' => $ocrResult['engine'],
             'error' => $ocrResult['error'],
             'timestamp' => date('Y-m-d H:i:s'),
@@ -98,10 +108,11 @@ class OcrService
 
     public function runOcr(string $imagePath): array
     {
+        $driver = $this->app->getConfig('ocr.driver', 'auto');
         $languages = $this->app->getConfig('ocr.languages', 'ind+eng');
 
-        // 1. Try Tesseract first
-        if ($this->engines['tesseract']->isAvailable()) {
+        // 1. Try Tesseract
+        if (($driver === 'auto' || $driver === 'tesseract') && $this->engines['tesseract']->isAvailable()) {
             $res = $this->engines['tesseract']->extractText($imagePath, $languages);
             if ($res['success']) {
                 return $res;
@@ -109,7 +120,7 @@ class OcrService
         }
 
         // 2. Try Python Bridge
-        if ($this->engines['python_bridge']->isAvailable()) {
+        if (($driver === 'auto' || $driver === 'python') && $this->engines['python_bridge']->isAvailable()) {
             $res = $this->engines['python_bridge']->extractText($imagePath, $languages);
             if ($res['success']) {
                 return $res;
@@ -120,7 +131,7 @@ class OcrService
             'success' => false,
             'text' => '',
             'engine' => 'none',
-            'error' => 'Mesin OCR lokal (Tesseract/Python) belum terpasang atau tidak merespons. Anda dapat mengetik/mengoreksi teks bukti secara manual atau menggunakan provider AI.',
+            'error' => 'Mesin OCR lokal (Tesseract/Python) belum terpasang atau tidak merespons. Gambar akan dianalisis langsung oleh Vision AI, atau Anda dapat mengedit teksnya secara manual.',
         ];
     }
 

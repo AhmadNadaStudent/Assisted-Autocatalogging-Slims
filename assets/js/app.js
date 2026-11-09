@@ -9,6 +9,13 @@ window.AAC = {
   slimsBase: (window.AAC_CONFIG && window.AAC_CONFIG.slimsBase) ? window.AAC_CONFIG.slimsBase : '/slims9_bulian-9.8.0/',
   csrfToken: '',
   currentPreviewId: null,
+  _initialized: false,
+  _evidenceCollapsed: false,
+  showExtraFields: false,
+
+  // 9 Field Utama yang paling sering dipakai pustakawan
+  primaryFields: ['title', 'authors', 'publisher', 'publish_year', 'isbn', 'classification', 'call_number', 'subjects', 'notes'],
+
   state: {
     model: null,
     evidence: [],
@@ -17,6 +24,9 @@ window.AAC = {
   },
 
   init() {
+    if (this._initialized) return;
+    this._initialized = true;
+
     this.bindEvents();
     this.loadStatus();
   },
@@ -39,7 +49,10 @@ window.AAC = {
     const dropZone = document.getElementById('aac-upload-zone');
     const fileInput = document.getElementById('aac-file-input');
     if (dropZone && fileInput) {
-      dropZone.addEventListener('click', () => fileInput.click());
+      dropZone.addEventListener('click', (e) => {
+        e.stopPropagation();
+        fileInput.click();
+      });
       dropZone.addEventListener('dragover', (e) => {
         e.preventDefault();
         dropZone.classList.add('dragover');
@@ -47,19 +60,19 @@ window.AAC = {
       dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
       dropZone.addEventListener('drop', (e) => {
         e.preventDefault();
-        dropZone.classList.add('dragover');
-        if (e.dataTransfer.files.length) {
+        dropZone.classList.remove('dragover');
+        if (e.dataTransfer.files && e.dataTransfer.files.length) {
           this.handleFiles(e.dataTransfer.files);
         }
       });
       fileInput.addEventListener('change', (e) => {
-        if (e.target.files.length) {
+        if (e.target.files && e.target.files.length) {
           this.handleFiles(e.target.files);
         }
       });
     }
 
-    // AI Extraction Button
+    // AI Re-extraction Button
     const runAiBtn = document.getElementById('aac-btn-run-ai');
     if (runAiBtn) {
       runAiBtn.addEventListener('click', () => this.runAiExtraction());
@@ -82,8 +95,29 @@ window.AAC = {
       if (e.key === 'Escape') {
         this.closeSettings();
         this.closePreview();
+        this.closeGuide();
       }
     });
+  },
+
+  toggleEvidencePanel() {
+    const body = document.getElementById('aac-evidence-panel-body');
+    const chevron = document.getElementById('aac-evidence-chevron');
+    if (!body) return;
+
+    this._evidenceCollapsed = !this._evidenceCollapsed;
+    if (this._evidenceCollapsed) {
+      body.style.display = 'none';
+      if (chevron) chevron.style.transform = 'rotate(-90deg)';
+    } else {
+      body.style.display = 'block';
+      if (chevron) chevron.style.transform = 'rotate(0deg)';
+    }
+  },
+
+  toggleExtraFields() {
+    this.showExtraFields = !this.showExtraFields;
+    this.renderMetadataTable();
   },
 
   getUrl(action) {
@@ -115,25 +149,33 @@ window.AAC = {
     // 1. Perpusnas OneSearch
     const onesearch = data.catalog?.onesearch;
     if (onesearch?.ok) {
-      html += `<span class="aac-badge aac-badge-success" title="${onesearch.message}">● Perpusnas OneSearch Aktif</span>`;
+      html += `<span class="aac-badge aac-badge-success" title="${onesearch.message}">● OneSearch Aktif</span>`;
     } else {
       html += `<span class="aac-badge aac-badge-warning" title="${onesearch?.message || 'Offline'}">▲ Perpusnas Terbatas</span>`;
     }
 
-    // 2. Status Koneksi ke AI (menggantikan Tesseract OCR)
+    // 2. Vision AI / OCR
+    const driver = data.ocr_driver || 'auto';
+    if (driver === 'vision_ai') {
+      html += `<span class="aac-badge aac-badge-info" title="Membaca bukti fisik langsung menggunakan model Vision AI">● Vision AI Aktif</span>`;
+    } else {
+      html += `<span class="aac-badge aac-badge-info" title="Driver OCR / Vision: ${driver}">● OCR: ${driver.toUpperCase()}</span>`;
+    }
+
+    // 3. AI Status
     const aiStatus = data.ai_status;
     const aiMode = data.ai_mode || 'local_only';
     if (aiMode === 'disabled') {
-      html += `<span class="aac-badge aac-badge-muted" title="AI dinonaktifkan di pengaturan">○ AI Dinonaktifkan</span>`;
+      html += `<span class="aac-badge aac-badge-muted" title="AI dinonaktifkan di pengaturan">○ AI Nonaktif</span>`;
     } else if (aiStatus?.ok) {
       html += `<span class="aac-badge aac-badge-success" title="${aiStatus.message || 'Terkoneksi'}">● AI Terhubung</span>`;
     } else {
       html += `<span class="aac-badge aac-badge-danger" title="${aiStatus?.message || 'Gagal terhubung'}">▲ AI Terputus</span>`;
     }
 
-    // 3. Model yang terpasang (menggantikan AI: LOCAL_ONLY)
+    // 4. Model Aktif
     const activeModel = data.ai_model || 'Belum dipilih';
-    html += `<span class="aac-badge aac-badge-info" title="Model AI Aktif yang Terpasang">Model: ${this.escapeHtml(activeModel)}</span>`;
+    html += `<span class="aac-badge aac-badge-muted" title="Model AI yang aktif">Model: ${this.escapeHtml(activeModel)}</span>`;
 
     badgeContainer.innerHTML = html;
   },
@@ -164,14 +206,14 @@ window.AAC = {
         this.state.model = json.data.model;
         this.state.summary = json.data.summary;
 
-        // Render Google Books preview card
+        // Render mini Google Books card
         this.renderGoogleBooksCard(json.data.google_books, json.data.search_result?.metadata?.title);
 
-        this.showAlert(alertBox, 'Katalog eksternal ditemukan: ' + (json.data.search_result?.metadata?.title || 'OK'), 'success');
+        this.showAlert(alertBox, 'Data Perpusnas ditemukan: ' + (json.data.search_result?.metadata?.title || 'OK'), 'success');
         this.renderMetadataTable();
         this.renderSummary();
 
-        // Otomatis jalankan klasifikasi AI secara asinkron di latar belakang
+        // Otomatis jalankan klasifikasi AI di background
         this.runAiClassification();
       } else {
         this.showAlert(alertBox, json.message || 'Gagal mencari ISBN', 'danger');
@@ -179,83 +221,54 @@ window.AAC = {
     } catch (err) {
       this.showAlert(alertBox, 'Terjadi kesalahan jaringan saat menghubungi server', 'danger');
     } finally {
-      this.setButtonLoading(btn, false, '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg> <span>Cari Katalog</span>');
+      this.setButtonLoading(btn, false, '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg> <span>Cari</span>');
     }
   },
 
   renderGoogleBooksCard(gbooks, title) {
-    const emptyEl = document.getElementById('aac-gbooks-empty');
     const contentEl = document.getElementById('aac-gbooks-content');
-    const notfoundEl = document.getElementById('aac-gbooks-notfound');
-    const badgeEl = document.getElementById('aac-gbooks-badge');
     const imgEl = document.getElementById('aac-gbooks-img');
     const titleEl = document.getElementById('aac-gbooks-title');
-    const statusDescEl = document.getElementById('aac-gbooks-status-desc');
+    const descEl = document.getElementById('aac-gbooks-status-desc');
+    const badgeEl = document.getElementById('aac-gbooks-badge');
     const linkEl = document.getElementById('aac-gbooks-link');
 
-    if (!gbooks) {
-      if (emptyEl) emptyEl.style.display = 'block';
-      if (contentEl) contentEl.style.display = 'none';
-      if (notfoundEl) notfoundEl.style.display = 'none';
-      if (badgeEl) {
-        badgeEl.className = 'aac-badge aac-badge-muted';
-        badgeEl.innerText = 'Menunggu ISBN';
-      }
+    if (!contentEl) return;
+
+    if (!gbooks || !gbooks.found) {
+      contentEl.style.display = 'none';
       return;
     }
 
-    if (emptyEl) emptyEl.style.display = 'none';
+    contentEl.style.display = 'block';
 
-    if (gbooks.found) {
-      if (notfoundEl) notfoundEl.style.display = 'none';
-      if (contentEl) contentEl.style.display = 'block';
+    if (imgEl) {
+      if (gbooks.cover_file) {
+        imgEl.src = `${this.slimsBase}images/docs/${gbooks.cover_file}`;
+      } else if (gbooks.cover_url) {
+        imgEl.src = gbooks.cover_url;
+      } else if (gbooks.thumbnail_url) {
+        imgEl.src = gbooks.thumbnail_url;
+      } else {
+        imgEl.src = '';
+      }
+    }
 
-      if (imgEl) {
-        if (gbooks.cover_file) {
-          imgEl.src = `${this.slimsBase}images/docs/${gbooks.cover_file}`;
-        } else if (gbooks.cover_url) {
-          imgEl.src = gbooks.cover_url;
-        } else if (gbooks.thumbnail_url) {
-          imgEl.src = gbooks.thumbnail_url;
-        } else {
-          imgEl.src = '';
-        }
-      }
-      if (titleEl) {
-        titleEl.innerText = title || 'Buku Ditemukan';
-      }
+    if (titleEl) {
+      titleEl.innerText = title || 'Buku Terdaftar';
+    }
 
-      let badgeText = '● Sampul Tersedia';
-      let badgeClass = 'aac-badge aac-badge-info';
-      let descText = 'Sampul buku berhasil diperoleh dari Google Books.';
+    if (descEl) {
+      descEl.innerText = gbooks.cover_file ? 'Sampul tersimpan otomatis ke direktori SLiMS' : 'Sampul pratinjau Google Books';
+    }
 
-      if (gbooks.preview_type === 'partial') {
-        badgeText = '● Pratinjau Tersedia';
-        badgeClass = 'aac-badge aac-badge-success';
-        descText = 'Sampul & pratinjau halaman buku tersedia di Google Books.';
-      } else if (gbooks.preview_type === 'full') {
-        badgeText = '● Pratinjau Lengkap';
-        badgeClass = 'aac-badge aac-badge-success';
-        descText = 'Isi buku lengkap dapat dibaca di Google Books.';
-      }
+    if (badgeEl) {
+      badgeEl.innerText = gbooks.preview_type === 'full' ? 'Pratinjau Penuh' : (gbooks.preview_type === 'partial' ? 'Pratinjau Tersedia' : 'Sampul Buku');
+    }
 
-      if (badgeEl) {
-        badgeEl.className = badgeClass;
-        badgeEl.innerText = badgeText;
-      }
-      if (statusDescEl) {
-        statusDescEl.innerText = descText;
-      }
-      if (linkEl) {
-        linkEl.href = gbooks.preview_url || '#';
-      }
-    } else {
-      if (contentEl) contentEl.style.display = 'none';
-      if (notfoundEl) notfoundEl.style.display = 'block';
-      if (badgeEl) {
-        badgeEl.className = 'aac-badge aac-badge-warning';
-        badgeEl.innerText = 'Tidak Ada';
-      }
+    if (linkEl) {
+      linkEl.href = gbooks.preview_url || '#';
+      linkEl.style.display = gbooks.preview_url ? 'inline-flex' : 'none';
     }
   },
 
@@ -263,9 +276,11 @@ window.AAC = {
     const pageTypeSelect = document.getElementById('aac-page-type-select');
     const pageType = pageTypeSelect ? pageTypeSelect.value : 'title_page';
     const alertBox = document.getElementById('aac-upload-alert');
+    const fileInput = document.getElementById('aac-file-input');
 
     this.hideAlert(alertBox);
 
+    let hasSuccess = false;
     for (const file of Array.from(files)) {
       const formData = new FormData();
       formData.append('action', 'upload_image');
@@ -278,53 +293,78 @@ window.AAC = {
         if (json.status === 'success') {
           this.state.evidence = json.data.all_evidence;
           this.renderEvidenceList();
+          hasSuccess = true;
         } else {
           this.showAlert(alertBox, json.message || 'Gagal mengunggah file', 'danger');
         }
       } catch (err) {
-        this.showAlert(alertBox, 'Gagal mengunggah file gambar: ' + file.name, 'danger');
+        this.showAlert(alertBox, 'Gagal mengunggah berkas gambar: ' + file.name, 'danger');
       }
+    }
+
+    // Reset file input agar jika memilih file yang sama bisa trigger change lagi
+    if (fileInput) fileInput.value = '';
+
+    // Otomatis jalankan ekstraksi AI saat ada foto baru yang diunggah
+    if (hasSuccess && this.state.evidence && this.state.evidence.length > 0) {
+      this.runAiExtraction();
     }
   },
 
   renderEvidenceList() {
     const container = document.getElementById('aac-evidence-list');
+    const countBadge = document.getElementById('aac-evidence-count-badge');
+    const reExtractBox = document.getElementById('aac-re-extract-box');
     const aiBtn = document.getElementById('aac-btn-run-ai');
     if (!container) return;
 
-    if (!this.state.evidence || !this.state.evidence.length) {
-      container.innerHTML = '<div style="color:var(--aac-text-subtle);font-size:0.78rem;text-align:center;padding:1rem;grid-column:1/-1;">Belum ada gambar bukti fisik yang diunggah.</div>';
+    const count = (this.state.evidence && this.state.evidence.length) || 0;
+    if (countBadge) countBadge.innerText = `${count} Foto`;
+
+    if (count === 0) {
+      container.innerHTML = '<div style="color:var(--aac-text-subtle);font-size:0.75rem;text-align:center;padding:0.6rem;grid-column:1/-1;">Belum ada foto bukti fisik yang diunggah.</div>';
+      if (reExtractBox) reExtractBox.style.display = 'none';
       if (aiBtn) aiBtn.disabled = true;
+      this.renderMetadataTable();
       return;
     }
 
+    if (reExtractBox) reExtractBox.style.display = 'block';
     if (aiBtn) aiBtn.disabled = false;
 
     let html = '';
     this.state.evidence.forEach((ev) => {
       const thumbUrl = ev.thumb_name ? `${this.pluginBase}storage/uploads/thumbs/${ev.thumb_name}` : `${this.pluginBase}storage/uploads/${ev.file_name}`;
       const pageLabel = this.getPageTypeLabel(ev.page_type);
-      const textPreview = ev.ocr_text ? (ev.ocr_text.substring(0, 50) + '...') : '[Teks tidak terbaca]';
+      const textPreview = ev.ocr_text ? (ev.ocr_text.substring(0, 50) + '...') : '[Teks siap dibaca AI]';
+
+      let statusBadge = '✓ OCR Siap';
+      if (ev.ocr_status === 'ready_for_vision') {
+        statusBadge = '⚡ Vision AI';
+      } else if (ev.ocr_status === 'empty') {
+        statusBadge = '○ Teks Kosong';
+      }
 
       html += `
-        <div class="aac-evidence-card" onclick="AAC.previewEvidence('${ev.evidence_id}')" title="Klik untuk lihat foto & hasil OCR\n${this.escapeHtml(textPreview)}">
+        <div class="aac-evidence-card" onclick="AAC.previewEvidence('${ev.evidence_id}')" title="Klik untuk lihat foto & koreksi teks\n${this.escapeHtml(textPreview)}">
           <button type="button" class="aac-evidence-delete" onclick="event.stopPropagation(); AAC.deleteEvidence('${ev.evidence_id}');" title="Hapus foto ini">&times;</button>
           <img src="${thumbUrl}" alt="${pageLabel}">
           <div class="aac-evidence-info">
             <strong>${pageLabel}</strong>
-            <div style="font-size:0.65rem;color:var(--aac-text-muted);">${ev.ocr_status === 'completed' ? '✓ OCR Selesai' : '○ Kosong'}</div>
+            <div style="font-size:0.65rem;color:var(--aac-text-muted);">${statusBadge}</div>
           </div>
         </div>
       `;
     });
 
     container.innerHTML = html;
+    this.renderMetadataTable();
   },
 
   getPageTypeLabel(type) {
     const labels = {
       title_page: 'Halaman Judul',
-      copyright_page: 'Hak Cipta',
+      copyright_page: 'Hak Cipta (KDT)',
       toc: 'Daftar Isi',
       cover: 'Sampul Depan',
       back_cover: 'Sampul Belakang / Sinopsis',
@@ -370,12 +410,12 @@ window.AAC = {
 
     const fullUrl = `${this.pluginBase}storage/uploads/${item.file_name}`;
     if (imgEl) imgEl.src = fullUrl;
-    if (ocrEl) ocrEl.value = item.ocr_text || '(Tidak ada teks terdeteksi dari OCR)';
+    if (ocrEl) ocrEl.value = item.ocr_text || '';
     if (badgeEl) {
       badgeEl.innerHTML = `<span class="aac-badge aac-badge-info">${this.getPageTypeLabel(item.page_type)}</span> <span class="aac-badge aac-badge-muted">${item.original_name || ''}</span>`;
     }
     if (titleEl) {
-      titleEl.innerText = `Bukti: ${this.getPageTypeLabel(item.page_type)}`;
+      titleEl.innerText = `Bukti Fisik: ${this.getPageTypeLabel(item.page_type)}`;
     }
 
     if (modal) modal.style.display = 'flex';
@@ -391,12 +431,42 @@ window.AAC = {
     const ocrEl = document.getElementById('aac-preview-ocr');
     if (!ocrEl) return;
     navigator.clipboard.writeText(ocrEl.value).then(() => {
-      alert('Teks OCR berhasil disalin ke clipboard!');
+      this.showToast('Teks berhasil disalin ke clipboard!');
     }).catch(() => {
       ocrEl.select();
       document.execCommand('copy');
-      alert('Teks OCR disalin!');
+      this.showToast('Teks disalin!');
     });
+  },
+
+  async saveOcrTextEdit() {
+    if (!this.currentPreviewId) return;
+    const ocrEl = document.getElementById('aac-preview-ocr');
+    const saveBtn = document.getElementById('btn-save-ocr-text');
+    const textVal = ocrEl ? ocrEl.value : '';
+
+    this.setButtonLoading(saveBtn, true, 'Menyimpan...');
+
+    try {
+      const formData = new FormData();
+      formData.append('action', 'update_evidence_ocr');
+      formData.append('evidence_id', this.currentPreviewId);
+      formData.append('ocr_text', textVal);
+
+      const res = await fetch(this.apiBase, { method: 'POST', body: formData });
+      const json = await res.json();
+      if (json.status === 'success') {
+        this.state.evidence = json.data.all_evidence;
+        this.renderEvidenceList();
+        this.showToast('Teks bukti fisik berhasil disimpan!');
+      } else {
+        alert(json.message || 'Gagal menyimpan teks');
+      }
+    } catch (e) {
+      alert('Terjadi kesalahan saat menyimpan teks');
+    } finally {
+      this.setButtonLoading(saveBtn, false, 'Simpan Teks');
+    }
   },
 
   deleteCurrentPreviewEvidence() {
@@ -429,9 +499,9 @@ window.AAC = {
         this.showAlert(alertBox, json.message || 'Ekstraksi gagal', 'danger');
       }
     } catch (err) {
-      this.showAlert(alertBox, 'Terjadi kesalahan saat memproses ekstraksi', 'danger');
+      this.showAlert(alertBox, 'Terjadi kesalahan saat memproses ekstraksi bukti', 'danger');
     } finally {
-      this.setButtonLoading(btn, false, '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg> <span>Ekstraksi Bukti Buku (AI / OCR)</span>');
+      this.setButtonLoading(btn, false, '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg> <span>Ekstraksi Ulang Bukti Fisik</span>');
     }
   },
 
@@ -439,7 +509,7 @@ window.AAC = {
     const btn = document.getElementById('aac-btn-ai-classify');
     const alertBox = document.getElementById('aac-metadata-alert');
 
-    this.setButtonLoading(btn, true, 'Menganalisis...');
+    this.setButtonLoading(btn, true, 'Menganalisis DDC...');
     this.hideAlert(alertBox);
 
     try {
@@ -454,34 +524,49 @@ window.AAC = {
         if (json.data.summary) this.state.summary = json.data.summary;
         this.renderMetadataTable();
         this.renderSummary();
-        this.showAlert(alertBox, 'Analisis klasifikasi AI selesai! Pilihan kandidat DDC dan sudut pandang telah diperbarui.', 'success');
+        this.showAlert(alertBox, 'Analisis DDC selesai! Nomor klasifikasi dan call number telah disesuaikan.', 'success');
       } else {
-        this.showAlert(alertBox, json.message || 'Gagal menjalankan analisis klasifikasi AI', 'danger');
+        this.showAlert(alertBox, json.message || 'Gagal analisis klasifikasi AI', 'danger');
       }
     } catch (err) {
       this.showAlert(alertBox, 'Terjadi kesalahan jaringan saat menghubungi AI', 'danger');
     } finally {
-      this.setButtonLoading(btn, false, '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg> <span>Analisis Klasifikasi AI</span>');
+      this.setButtonLoading(btn, false, '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg> <span>Analisis DDC</span>');
     }
   },
 
   renderMetadataTable() {
     const tbody = document.getElementById('aac-metadata-tbody');
+    const thEvidence = document.getElementById('th-evidence');
     const approveAllBtn = document.getElementById('aac-btn-approve-all');
     const classifyAiBtn = document.getElementById('aac-btn-ai-classify');
     if (!tbody || !this.state.model?.fields) return;
 
-    if (approveAllBtn) {
-      approveAllBtn.style.display = 'inline-flex';
+    if (approveAllBtn) approveAllBtn.style.display = 'inline-flex';
+    if (classifyAiBtn) classifyAiBtn.style.display = 'inline-flex';
+
+    const hasEvidence = Array.isArray(this.state.evidence) && this.state.evidence.length > 0;
+    if (thEvidence) {
+      thEvidence.style.display = hasEvidence ? '' : 'none';
     }
-    if (classifyAiBtn) {
-      classifyAiBtn.style.display = 'inline-flex';
+
+    const fields = this.state.model.fields;
+
+    // Periksa apakah ada conflict di field sekunder
+    let hasExtraConflict = false;
+    for (const [key, f] of Object.entries(fields)) {
+      if (!this.primaryFields.includes(key) && f.status === 'conflict') {
+        hasExtraConflict = true;
+        break;
+      }
+    }
+    if (hasExtraConflict) {
+      this.showExtraFields = true;
     }
 
     let html = '';
-    const fields = this.state.model.fields;
 
-    for (const [key, f] of Object.entries(fields)) {
+    const renderRow = (key, f) => {
       const isConflict = f.status === 'conflict';
       const isVerified = f.status === 'verified';
       const rowClass = isConflict ? 'aac-row-conflict' : (isVerified ? 'aac-row-verified' : '');
@@ -494,21 +579,29 @@ window.AAC = {
         const renderThumb = (v) => {
           if (!v) return '<span class="aac-text-empty">—</span>';
           const src = v.startsWith('http') ? v : `${this.slimsBase}images/docs/${v}`;
-          return `<div style="display:flex;align-items:center;gap:0.5rem;"><img src="${src}" alt="Sampul" style="height:48px;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.15);object-fit:cover;border:1px solid var(--aac-border);"> <span style="font-size:0.75rem;font-family:monospace;color:var(--aac-text);">${this.escapeHtml(v)}</span></div>`;
+          return `<div style="display:flex;align-items:center;gap:0.5rem;"><img src="${src}" alt="Sampul" style="height:44px;border-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.15);object-fit:cover;border:1px solid var(--aac-border);"> <span style="font-size:0.75rem;font-family:monospace;color:var(--aac-text);">${this.escapeHtml(v)}</span></div>`;
         };
         if (f.external_value) extDisplay = renderThumb(f.external_value);
         if (f.ocr_value) ocrDisplay = renderThumb(f.ocr_value);
       }
 
-      // Contextual micro-hint
       let warningHtml = '';
       if (isConflict && f.conflict_reason) {
         warningHtml = `<div class="aac-conflict-pill"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> ${this.escapeHtml(f.conflict_reason)}</div>`;
       } else if (f.status === 'external_only_unverified') {
-        warningHtml = `<div class="aac-warning-hint"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg> Hanya dari katalog eksternal</div>`;
+        warningHtml = `<div class="aac-warning-hint"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg> Sumber Perpusnas</div>`;
       }
 
-      html += `
+      const evidenceCellHtml = hasEvidence ? `
+        <td class="aac-source-cell col-evidence">
+          <div class="aac-source-pill ${ocrDisplay ? '' : 'is-empty'}">
+            <div class="aac-source-text">${ocrDisplay ? this.escapeHtml(ocrDisplay) : '<span class="aac-text-empty">—</span>'}</div>
+            ${ocrDisplay ? `<button type="button" class="aac-btn-pick" onclick="AAC.selectValue('${key}', 'ocr')" title="Pilih nilai dari bukti fisik">Pilih ➔</button>` : ''}
+          </div>
+        </td>
+      ` : '';
+
+      return `
         <tr class="${rowClass}">
           <td class="aac-field-cell">
             <div class="aac-field-name">${f.label}</div>
@@ -517,15 +610,10 @@ window.AAC = {
           <td class="aac-source-cell">
             <div class="aac-source-pill ${extDisplay ? '' : 'is-empty'}">
               <div class="aac-source-text">${extDisplay ? this.escapeHtml(extDisplay) : '<span class="aac-text-empty">—</span>'}</div>
-              ${extDisplay ? `<button type="button" class="aac-btn-pick" onclick="AAC.selectValue('${key}', 'external')" title="Pilih nilai dari katalog Perpusnas">Pilih ➔</button>` : ''}
+              ${extDisplay ? `<button type="button" class="aac-btn-pick" onclick="AAC.selectValue('${key}', 'external')" title="Pilih nilai dari Perpusnas">Pilih ➔</button>` : ''}
             </div>
           </td>
-          <td class="aac-source-cell">
-            <div class="aac-source-pill ${ocrDisplay ? '' : 'is-empty'}">
-              <div class="aac-source-text">${ocrDisplay ? this.escapeHtml(ocrDisplay) : '<span class="aac-text-empty">—</span>'}</div>
-              ${ocrDisplay ? `<button type="button" class="aac-btn-pick" onclick="AAC.selectValue('${key}', 'ocr')" title="Pilih nilai dari bukti fisik OCR/AI">Pilih ➔</button>` : ''}
-            </div>
-          </td>
+          ${evidenceCellHtml}
           <td class="aac-final-cell">
             <div class="aac-final-group">
               ${(() => {
@@ -534,7 +622,7 @@ window.AAC = {
                   this.state.classificationCandidateMap = {};
                   let isMatched = false;
                   let currentReasoning = '';
-                  let optHtml = '<option value="">-- Pilih Rekomendasi Klasifikasi (DDC) --</option>';
+                  let optHtml = '<option value="">-- Rekomendasi DDC --</option>';
                   candidates.forEach((cand) => {
                     const cVal = cand.class;
                     this.state.classificationCandidateMap[cVal] = cand;
@@ -548,16 +636,16 @@ window.AAC = {
                     optHtml += `<option value="${this.escapeHtml(cVal)}" ${isSel ? 'selected' : ''}>[${srcLabel}] ${this.escapeHtml(cVal)}${this.escapeHtml(desc)}</option>`;
                   });
                   const isCustom = !isMatched && currentSelected !== '';
-                  optHtml += `<option value="__custom__" ${isCustom ? 'selected' : ''}>✏️ Ketik Manual Lainnya...</option>`;
+                  optHtml += `<option value="__custom__" ${isCustom ? 'selected' : ''}>✏️ Ketik Manual...</option>`;
 
                   return `
                     <div style="width:100%;">
                       <select class="aac-input aac-input-final" id="select-field-classification" onchange="AAC.onClassificationSelectChange(this.value)" style="margin-bottom:0.35rem;font-weight:600;">
                         ${optHtml}
                       </select>
-                      <input type="text" class="aac-input aac-input-final" id="input-field-classification" value="${this.escapeHtml(currentSelected)}" oninput="AAC.onClassificationInputChange(this.value)" onchange="AAC.onFieldChange('classification', this.value)" placeholder="Ketik nomor klasifikasi kustom..." style="${isCustom ? 'display:block;' : 'display:none;'}">
-                      <div id="aac-classification-reasoning" style="${(currentReasoning || isCustom) ? 'display:flex;' : 'display:none;'}align-items:flex-start;gap:0.4rem;background:#f0f9ff;border:1px solid #bae6fd;color:#0369a1;border-radius:6px;padding:0.45rem 0.65rem;font-size:0.73rem;line-height:1.4;margin-top:0.35rem;">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                      <input type="text" class="aac-input aac-input-final" id="input-field-classification" value="${this.escapeHtml(currentSelected)}" oninput="AAC.onClassificationInputChange(this.value)" onchange="AAC.onFieldChange('classification', this.value)" placeholder="Ketik nomor DDC kustom..." style="${isCustom ? 'display:block;' : 'display:none;'}">
+                      <div id="aac-classification-reasoning" style="${(currentReasoning || isCustom) ? 'display:flex;' : 'display:none;'}align-items:flex-start;gap:0.4rem;background:#f0f9ff;border:1px solid #bae6fd;color:#0369a1;border-radius:6px;padding:0.4rem 0.6rem;font-size:0.72rem;line-height:1.4;margin-top:0.35rem;">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
                         <div id="aac-classification-reasoning-text">${this.escapeHtml(isCustom ? 'Pilihan Kustom: Masukkan nomor klasifikasi DDC secara manual.' : (currentReasoning ? ('Sudut Pandang: ' + currentReasoning) : ''))}</div>
                       </div>
                     </div>
@@ -565,13 +653,13 @@ window.AAC = {
                 } else if (key === 'notes') {
                   return `
                     <div style="width:100%;">
-                      <textarea class="aac-input aac-input-final" id="input-field-notes" rows="3" onchange="AAC.onFieldChange('notes', this.value)" placeholder="Teks sinopsis / abstrak buku..." style="line-height:1.4;resize:vertical;font-size:0.8rem;">${this.escapeHtml(currentSelected)}</textarea>
+                      <textarea class="aac-input aac-input-final" id="input-field-notes" rows="2" onchange="AAC.onFieldChange('notes', this.value)" placeholder="Sinopsis / abstrak buku..." style="line-height:1.4;resize:vertical;font-size:0.78rem;">${this.escapeHtml(currentSelected)}</textarea>
                     </div>
                   `;
                 } else {
                   let extraHint = '';
                   if (key === 'call_number') {
-                    extraHint = `<div style="font-size:0.7rem;color:var(--aac-text-muted);margin-top:0.25rem;">Format: <code>${this.escapeHtml(this.state.callNumberTemplate || '{class} {author} {title}')}</code> (Otomatis dari klasifikasi)</div>`;
+                    extraHint = `<div style="font-size:0.68rem;color:var(--aac-text-muted);margin-top:0.2rem;">Format: <code>${this.escapeHtml(this.state.callNumberTemplate || '{class} {author} {title}')}</code></div>`;
                   }
                   return `
                     <div style="width:100%;">
@@ -581,14 +669,42 @@ window.AAC = {
                   `;
                 }
               })()}
-              <button type="button" class="aac-btn-approve ${isVerified ? 'is-approved' : 'not-approved'}" onclick="AAC.approveField('${key}')" title="${isVerified ? 'Nilai ini sudah terverifikasi' : 'Setujui nilai ini'}">
-                ${isVerified ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg> Disetujui' : 'Setujui'}
+              <button type="button" class="aac-btn-approve ${isVerified ? 'is-approved' : 'not-approved'}" onclick="AAC.approveField('${key}')" title="${isVerified ? 'Sudah disetujui' : 'Setujui nilai ini'}">
+                ${isVerified ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg> OK' : 'Setujui'}
               </button>
             </div>
             ${warningHtml}
           </td>
         </tr>
       `;
+    };
+
+    // 1. Render Primary Fields
+    this.primaryFields.forEach((key) => {
+      if (fields[key]) {
+        html += renderRow(key, fields[key]);
+      }
+    });
+
+    // 2. Extra Fields Toggle Divider
+    const extraFieldKeys = Object.keys(fields).filter(k => !this.primaryFields.includes(k));
+    const colSpan = hasEvidence ? 4 : 3;
+
+    html += `
+      <tr class="aac-extra-fields-row">
+        <td colspan="${colSpan}" style="padding:0.6rem 0.9rem;background:#f8fafc;border-top:1px solid var(--aac-border);border-bottom:1px solid var(--aac-border);text-align:center;">
+          <button type="button" class="aac-btn aac-btn-secondary aac-btn-sm" onclick="AAC.toggleExtraFields()" style="font-size:0.75rem;padding:0.3rem 0.75rem;">
+            ${this.showExtraFields ? '▲ Sembunyikan Field Tambahan' : `▼ Tampilkan ${extraFieldKeys.length} Field Tambahan (Edisi, Tempat Terbit, Kolasi, dll.)`}
+          </button>
+        </td>
+      </tr>
+    `;
+
+    // 3. Render Extra Fields jika toggle dibuka
+    if (this.showExtraFields) {
+      extraFieldKeys.forEach((key) => {
+        html += renderRow(key, fields[key]);
+      });
     }
 
     tbody.innerHTML = html;
@@ -596,13 +712,13 @@ window.AAC = {
 
   renderStatusBadge(status) {
     const map = {
-      verified: '<span class="aac-badge aac-badge-success">● Terverifikasi</span>',
-      candidate: '<span class="aac-badge aac-badge-info">● Kandidat</span>',
-      conflict: '<span class="aac-badge aac-badge-warning">▲ Konflik</span>',
-      external_only_unverified: '<span class="aac-badge aac-badge-danger">○ Belum Terbukti</span>',
-      not_stated_in_examined_sources: '<span class="aac-badge aac-badge-muted">○ Tidak Ada</span>',
-      not_checked: '<span class="aac-badge aac-badge-muted">○ Belum Diperiksa</span>',
-      rejected: '<span class="aac-badge aac-badge-danger">✕ Ditolak</span>'
+      verified: '<span class="aac-badge aac-badge-success" style="font-size:0.65rem;">● Disetujui</span>',
+      candidate: '<span class="aac-badge aac-badge-info" style="font-size:0.65rem;">● Kandidat</span>',
+      conflict: '<span class="aac-badge aac-badge-warning" style="font-size:0.65rem;">▲ Konflik</span>',
+      external_only_unverified: '<span class="aac-badge aac-badge-muted" style="font-size:0.65rem;">○ Perpusnas</span>',
+      not_stated_in_examined_sources: '<span class="aac-badge aac-badge-muted" style="font-size:0.65rem;">○ Kosong</span>',
+      not_checked: '<span class="aac-badge aac-badge-muted" style="font-size:0.65rem;">○ Baru</span>',
+      rejected: '<span class="aac-badge aac-badge-danger" style="font-size:0.65rem;">✕ Ditolak</span>'
     };
     return map[status] || `<span class="aac-badge aac-badge-muted">${status}</span>`;
   },
@@ -700,7 +816,7 @@ window.AAC = {
     const copyVal = (data.copy || 'c.1').trim();
     const itemVal = (data.item_code || '').trim();
 
-    // Standard Perpusnas: 3 capital letters of author, 1 lowercase letter of title
+    // Standard Perpusnas: 3 huruf kapital pengarang, 1 huruf kecil judul
     const authorCode = authorVal ? authorVal.replace(/[^a-zA-Z]/g, '').substring(0, 3).toUpperCase() : 'XXX';
     const titleCode = titleVal ? titleVal.replace(/[^a-zA-Z]/g, '').substring(0, 1).toLowerCase() : '';
     const pubCode = pubVal ? pubVal.replace(/[^a-zA-Z]/g, '').substring(0, 4).toUpperCase() : '';
@@ -855,7 +971,7 @@ window.AAC = {
       this.renderMetadataTable();
       this.renderSummary();
     } finally {
-      this.setButtonLoading(btn, false, '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="20 6 9 17 4 12"></polyline></svg> <span>Setujui Semua dari Perpusnas</span>');
+      this.setButtonLoading(btn, false, '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="20 6 9 17 4 12"></polyline></svg> <span>Setujui Semua Perpusnas</span>');
     }
   },
 
@@ -892,7 +1008,6 @@ window.AAC = {
     setVal('aac-stat-verified', s.verified);
     setVal('aac-stat-conflict', s.conflict);
     setVal('aac-stat-unverified', s.external_only_unverified);
-    setVal('aac-stat-candidates', s.candidate);
   },
 
   async saveToSlims() {
@@ -918,7 +1033,6 @@ window.AAC = {
         const biblioId = json.data?.biblio_id || '-';
         const title = json.data?.title || '';
 
-        // Display success card in-place WITHOUT page reload
         alertBox.className = 'aac-alert aac-alert-success';
         alertBox.style.display = 'block';
         alertBox.innerHTML = `
@@ -929,7 +1043,7 @@ window.AAC = {
                 Berhasil Tersimpan ke SLiMS!
               </div>
               <div style="margin-top:0.25rem;font-size:0.82rem;line-height:1.4;">
-                Bibliografi berhasil disimpan dengan ID <strong>#${this.escapeHtml(biblioId)}</strong>: "<em>${this.escapeHtml(title)}</em>" dan indeks pencarian SLiMS telah diperbarui.
+                Bibliografi tersimpan dengan ID <strong>#${this.escapeHtml(biblioId)}</strong>: "<em>${this.escapeHtml(title)}</em>". Indeks pencarian SLiMS telah diperbarui.
               </div>
             </div>
             <button type="button" class="aac-btn aac-btn-success aac-btn-sm" onclick="AAC.resetSession(true)" style="margin-top:2px;">
@@ -944,7 +1058,7 @@ window.AAC = {
         this.showAlert(alertBox, json.message || 'Gagal menyimpan ke SLiMS', 'danger');
       }
     } catch (err) {
-      this.showAlert(alertBox, 'Terjadi kesalahan komunikasi dengan database', 'danger');
+      this.showAlert(alertBox, 'Terjadi kesalahan komunikasi dengan basis data', 'danger');
     } finally {
       this.setButtonLoading(btn, false, '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg> <span>Simpan Final ke SLiMS</span>');
     }
@@ -963,14 +1077,12 @@ window.AAC = {
       console.warn('Gagal reset sesi backend:', e);
     }
 
-    // Reset local state in-place without page reload
     this.state = {
       model: null,
       evidence: [],
       summary: { total: 0, verified: 0, candidate: 0, conflict: 0, external_only_unverified: 0 }
     };
 
-    // 1. Clear input & all alerts including storage alert
     const isbnInput = document.getElementById('aac-input-isbn');
     if (isbnInput) {
       isbnInput.value = '';
@@ -987,10 +1099,10 @@ window.AAC = {
     // Reset cover preview card
     this.renderGoogleBooksCard(null);
 
-    // 2. Clear evidence list
+    // Clear evidence list
     this.renderEvidenceList();
 
-    // 3. Reset table
+    // Reset table
     const tbody = document.getElementById('aac-metadata-tbody');
     if (tbody) {
       tbody.innerHTML = `
@@ -1002,14 +1114,12 @@ window.AAC = {
       `;
     }
 
-    // 4. Hide "Setujui Semua" button
     const approveAllBtn = document.getElementById('aac-btn-approve-all');
     if (approveAllBtn) approveAllBtn.style.display = 'none';
+    const classifyAiBtn = document.getElementById('aac-btn-ai-classify');
+    if (classifyAiBtn) classifyAiBtn.style.display = 'none';
 
-    // 5. Reset stats summary bar
     this.renderSummary();
-
-    // 6. Reload status & CSRF token
     this.loadStatus();
   },
 
@@ -1025,7 +1135,6 @@ window.AAC = {
       if (json.status === 'success') {
         const s = json.data;
 
-        // Populate fields
         const aiMode = document.getElementById('cfg-ai-mode');
         if (aiMode) aiMode.value = s.ai.mode || 'local_only';
 
@@ -1153,7 +1262,7 @@ window.AAC = {
           btn.style.color = '';
         }, 2000);
       }
-      this.showToast(`Perintah "${text}" berhasil disalin ke clipboard!`);
+      this.showToast(`Perintah "${text}" berhasil disalin!`);
     } catch (e) {
       alert('Gagal menyalin perintah: ' + text);
     }
@@ -1227,7 +1336,7 @@ window.AAC = {
     const descs = {
       local_only: 'Mode Local-Only: Semua pemrosesan data dilakukan 100% di komputer lokal via Ollama tanpa mengirim data keluar.',
       cloud: 'Mode Cloud AI: Ekstraksi dan klasifikasi diproses via API Cloud berkecepatan tinggi (OpenAI/9Router/Gemini).',
-      hybrid: 'Mode Hybrid: OCR dijalankan di server lokal, sedangkan klasifikasi subjek kompleks dikonsultasikan ke model AI.',
+      hybrid: 'Mode Hybrid: Pembacaan gambar/OCR lokal, sedangkan analisis subjek & DDC dikonsultasikan ke model AI.',
       disabled: 'Mode Disabled: AI dinonaktifkan sepenuhnya. Pemetaan mengandalkan aturan bibliografi standar dan regex.'
     };
 
@@ -1263,7 +1372,6 @@ window.AAC = {
           const modelList = json.data.models ? json.data.models.join(', ') : '-';
           resBox.innerText = `✓ Terkoneksi ke Ollama! Model tersedia: ${modelList}`;
 
-          // Populate datalist
           const dl = document.getElementById('ollama-model-list');
           if (dl && json.data.models) {
             dl.innerHTML = json.data.models.map(m => `<option value="${m}">`).join('');
@@ -1378,9 +1486,6 @@ window.AAC = {
         if (json.data?.config?.slims?.call_number_template) {
           this.state.callNumberTemplate = json.data.config.slims.call_number_template;
         }
-        if (json.data?.config?.classification?.context_sources) {
-          this.state.classificationSources = json.data.config.classification.context_sources;
-        }
         this.showAlert(alertBox, 'Pengaturan berhasil disimpan!', 'success');
         this.loadStatus();
         setTimeout(() => this.closeSettings(), 1000);
@@ -1431,10 +1536,10 @@ window.AAC = {
   }
 };
 
-// Also define global alias
+// Global alias
 const AAC = window.AAC;
 
-// Auto-run even if injected via AJAX/iframe into SLiMS DOM
+// Auto-run when DOM ready
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => AAC.init());
 } else {

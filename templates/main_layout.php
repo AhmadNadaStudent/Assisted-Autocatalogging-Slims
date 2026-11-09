@@ -1,6 +1,7 @@
 <?php
 /**
  * Main Layout Template for Assisted Autocataloguing
+ * Modern, Compact & Librarian-Friendly UI
  */
 if (!defined('INDEX_AUTH')) {
     die('Akses langsung tidak diizinkan');
@@ -12,7 +13,7 @@ $menuHash = md5(realpath(__DIR__ . '/../index.php'));
 // Use admin plugin_container URL to guarantee admin session and cookies
 $apiBaseUrl = $adminWebBase . 'plugin_container.php?mod=bibliography&id=' . $menuHash;
 ?>
-<link rel="stylesheet" href="<?= $pluginWebBase ?>assets/css/app.css?v=3.2">
+<link rel="stylesheet" href="<?= $pluginWebBase ?>assets/css/app.css?v=3.3">
 
 <div class="aac-container">
 
@@ -44,184 +45,140 @@ $apiBaseUrl = $adminWebBase . 'plugin_container.php?mod=bibliography&id=' . $men
     </div>
   </div>
 
-  <!-- Global Metrics Summary Bar across top -->
-  <div class="aac-stats-bar">
-    <div class="aac-stat-box is-verified">
-      <div class="aac-stat-info">
-        <div class="aac-stat-num" id="aac-stat-verified">0</div>
-        <div class="aac-stat-label">Terverifikasi</div>
-      </div>
-      <div class="aac-stat-icon">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-      </div>
-    </div>
-    <div class="aac-stat-box is-candidates">
-      <div class="aac-stat-info">
-        <div class="aac-stat-num" id="aac-stat-candidates">0</div>
-        <div class="aac-stat-label">Kandidat</div>
-      </div>
-      <div class="aac-stat-icon">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-      </div>
-    </div>
-    <div class="aac-stat-box is-conflict">
-      <div class="aac-stat-info">
-        <div class="aac-stat-num" id="aac-stat-conflict">0</div>
-        <div class="aac-stat-label">Konflik Data</div>
-      </div>
-      <div class="aac-stat-icon">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-      </div>
-    </div>
-    <div class="aac-stat-box is-unverified">
-      <div class="aac-stat-info">
-        <div class="aac-stat-num" id="aac-stat-unverified">0</div>
-        <div class="aac-stat-label">Belum Terbukti</div>
-      </div>
-      <div class="aac-stat-icon">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
-      </div>
-    </div>
-  </div>
-
   <!-- Main Grid Layout -->
   <div class="aac-grid">
 
-    <!-- Left Column: Input ISBN & Upload Bukti Fisik -->
+    <!-- Left Column: Input ISBN & Upload Bukti Fisik (Ringkas) -->
     <div class="aac-col-left">
 
-      <!-- Panel 1: ISBN Search -->
+      <!-- Panel 1: ISBN Search & Integrated Book Preview -->
       <div class="aac-card">
         <h2 class="aac-card-title">
-          <span>1. Input ISBN & Katalog Eksternal</span>
+          <span>1. Input ISBN & Katalog Perpusnas</span>
         </h2>
         <div id="aac-isbn-alert" style="display:none;"></div>
-        <div class="aac-form-group">
+        <div class="aac-form-group" style="margin-bottom:0.75rem;">
           <label class="aac-form-label" for="aac-input-isbn">Nomor ISBN (10 atau 13 Digit)</label>
           <div class="aac-search-input-group">
             <input type="text" class="aac-input" id="aac-input-isbn" placeholder="Contoh: 9786230034435" autofocus>
             <button type="button" class="aac-btn aac-btn-primary" id="aac-btn-search-isbn">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-              <span>Cari Katalog</span>
+              <span>Cari</span>
             </button>
           </div>
-          <div style="font-size:0.75rem;color:var(--aac-text-muted);margin-top:0.45rem;">
-            Sumber utama: Perpustakaan Nasional RI (OneSearch / OPAC).
+          <div style="font-size:0.72rem;color:var(--aac-text-muted);margin-top:0.35rem;">
+            Pencarian otomatis ke Indonesia OneSearch (Union Catalog Perpusnas).
+          </div>
+        </div>
+
+        <!-- Integrated Book Preview Card (muncul saat ISBN ditemukan) -->
+        <div id="aac-gbooks-content" class="aac-gbooks-mini-card" style="display:none;">
+          <div class="aac-gbooks-mini-body">
+            <img id="aac-gbooks-img" src="" alt="Sampul Buku" class="aac-gbooks-mini-img">
+            <div class="aac-gbooks-mini-meta">
+              <div id="aac-gbooks-title" class="aac-gbooks-mini-title">Judul Buku</div>
+              <div id="aac-gbooks-status-desc" class="aac-gbooks-mini-desc">Sampul otomatis tersimpan ke SLiMS</div>
+              <div style="margin-top:0.4rem;display:flex;gap:0.4rem;flex-wrap:wrap;">
+                <span class="aac-badge aac-badge-success" id="aac-gbooks-badge" style="font-size:0.65rem;">Sampul Tersedia</span>
+                <a id="aac-gbooks-link" href="#" target="_blank" class="aac-btn aac-btn-secondary aac-btn-sm" style="padding:0.2rem 0.5rem;font-size:0.7rem;text-decoration:none;">
+                  Lihat Pratinjau ↗
+                </a>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Panel 2: Upload Gambar Bukti Fisik -->
-      <div class="aac-card">
-        <h2 class="aac-card-title">
-          <span>2. Bukti Fisik Buku (OCR / AI)</span>
-        </h2>
-        <div id="aac-upload-alert" style="display:none;"></div>
-
-        <div class="aac-form-group">
-          <label class="aac-form-label" for="aac-page-type-select">Target Halaman</label>
-          <select class="aac-input" id="aac-page-type-select">
-            <option value="title_page">Halaman Judul (Title Page)</option>
-            <option value="copyright_page">Halaman Hak Cipta / Balik Judul</option>
-            <option value="cover">Sampul Depan (Cover)</option>
-            <option value="back_cover">Sampul Belakang / Sinopsis (Back Cover / Blurb)</option>
-            <option value="toc">Daftar Isi (Table of Contents)</option>
-            <option value="other">Halaman Lainnya</option>
-          </select>
+      <!-- Panel 2: Bukti Fisik Buku (Collapsible & Opsional) -->
+      <div class="aac-card" id="aac-evidence-card-panel">
+        <div class="aac-card-title aac-collapsible-header" onclick="AAC.toggleEvidencePanel()" style="cursor:pointer;margin-bottom:0.75rem;">
+          <span style="display:flex;align-items:center;gap:0.4rem;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+            2. Bukti Fisik Buku (Opsional)
+          </span>
+          <div style="display:flex;align-items:center;gap:0.4rem;">
+            <span class="aac-badge aac-badge-muted" id="aac-evidence-count-badge">0 Foto</span>
+            <svg id="aac-evidence-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transition:transform 0.2s;"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </div>
         </div>
 
-        <div class="aac-upload-zone" id="aac-upload-zone">
-          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="var(--aac-primary)" stroke-width="2" style="margin:0 auto;display:block;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-          <div class="aac-upload-title">Klik atau Tarik Foto Halaman ke Sini</div>
-          <div class="aac-upload-hint">Format JPEG, PNG, WebP (Maks. 10MB)</div>
+        <div id="aac-evidence-panel-body">
+          <div id="aac-upload-alert" style="display:none;"></div>
+
+          <div class="aac-form-group">
+            <label class="aac-form-label" for="aac-page-type-select">Target Halaman Foto</label>
+            <select class="aac-input" id="aac-page-type-select">
+              <option value="title_page">Halaman Judul (Title Page)</option>
+              <option value="copyright_page">Halaman Hak Cipta / Balik Judul</option>
+              <option value="cover">Sampul Depan (Cover)</option>
+              <option value="back_cover">Sampul Belakang / Sinopsis</option>
+              <option value="toc">Daftar Isi (Table of Contents)</option>
+              <option value="other">Halaman Lainnya</option>
+            </select>
+          </div>
+
+          <!-- Upload Dropzone (File input ditaruh di luar untuk mencegah double trigger) -->
+          <div class="aac-upload-zone" id="aac-upload-zone">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--aac-primary)" stroke-width="2" style="margin:0 auto 0.25rem auto;display:block;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+            <div class="aac-upload-title">Klik atau Tarik Foto Halaman ke Sini</div>
+            <div class="aac-upload-hint">Format JPEG, PNG, WebP (Maks. 10MB)</div>
+          </div>
+          <!-- Hidden File Input placed outside dropzone -->
           <input type="file" id="aac-file-input" multiple accept="image/jpeg,image/png,image/webp" style="display:none;">
-        </div>
 
-        <!-- Evidence Cards List -->
-        <div class="aac-evidence-list" id="aac-evidence-list">
-          <div style="color:var(--aac-text-subtle);font-size:0.78rem;text-align:center;padding:1rem;grid-column:1/-1;">Belum ada gambar bukti fisik yang diunggah.</div>
-        </div>
-
-        <div style="margin-top:1.25rem;">
-          <button type="button" class="aac-btn aac-btn-primary" id="aac-btn-run-ai" style="width:100%;" disabled>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-            <span>Ekstraksi Bukti Buku (AI / OCR)</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Panel 3: Pratinjau Buku (Google Books) -->
-      <div class="aac-card" id="aac-gbooks-card">
-        <h2 class="aac-card-title">
-          <span>3. Pratinjau Buku (Google Books)</span>
-          <span class="aac-badge aac-badge-muted" id="aac-gbooks-badge">Menunggu ISBN</span>
-        </h2>
-
-        <!-- Default State: Empty -->
-        <div id="aac-gbooks-empty" style="text-align:center;padding:1.5rem 0.5rem;color:var(--aac-text-subtle);">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" style="margin:0 auto 0.5rem auto;display:block;"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
-          <div style="font-size:0.8rem;font-weight:600;color:var(--aac-text);">Pratinjau Belum Dimuat</div>
-          <div style="font-size:0.72rem;margin-top:0.25rem;line-height:1.4;">Cari nomor ISBN di atas untuk memuat pratinjau halaman buku dan sampul dari Google Books.</div>
-        </div>
-
-        <!-- Loaded State: Cover & Preview Link -->
-        <div id="aac-gbooks-content" style="display:none;text-align:center;padding:0.4rem 0;">
-          <div style="margin-bottom:0.75rem;">
-            <img id="aac-gbooks-img" src="" alt="Sampul Google Books" style="max-height:210px;border-radius:8px;box-shadow:var(--aac-shadow-md);object-fit:contain;border:1px solid var(--aac-border);background:#f8fafc;display:inline-block;">
+          <!-- Evidence Cards List -->
+          <div class="aac-evidence-list" id="aac-evidence-list">
+            <div style="color:var(--aac-text-subtle);font-size:0.75rem;text-align:center;padding:0.6rem;grid-column:1/-1;">Belum ada foto bukti fisik yang diunggah.</div>
           </div>
-          <div id="aac-gbooks-title" style="font-weight:700;font-size:0.84rem;color:var(--aac-text);line-height:1.35;margin-bottom:0.25rem;"></div>
-          <div id="aac-gbooks-status-desc" style="font-size:0.72rem;color:var(--aac-text-muted);margin-bottom:0.75rem;"></div>
-          
-          <div style="display:flex;flex-direction:column;gap:0.45rem;">
-            <a id="aac-gbooks-link" href="#" target="_blank" class="aac-btn aac-btn-outline-primary aac-btn-sm" style="text-decoration:none;display:flex;justify-content:center;gap:0.4rem;">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-              <span>Buka Pratinjau di Google Books</span>
-            </a>
-          </div>
-          <div style="margin-top:0.6rem;font-size:0.72rem;color:var(--aac-success);display:flex;align-items:center;justify-content:center;gap:0.3rem;">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            <span>Sampul otomatis tersimpan ke SLiMS</span>
+
+          <div style="margin-top:0.85rem;" id="aac-re-extract-box" style="display:none;">
+            <button type="button" class="aac-btn aac-btn-secondary aac-btn-sm" id="aac-btn-run-ai" style="width:100%;" disabled>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+              <span>Ekstraksi Ulang Bukti Fisik</span>
+            </button>
           </div>
         </div>
-
-        <!-- Not Found State -->
-        <div id="aac-gbooks-notfound" style="display:none;text-align:center;padding:1.4rem 0.5rem;color:var(--aac-warning);">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="margin:0 auto 0.4rem auto;display:block;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-          <div style="font-size:0.8rem;font-weight:600;">Pratinjau Tidak Tersedia</div>
-          <div style="font-size:0.72rem;color:var(--aac-text-muted);margin-top:0.25rem;line-height:1.35;">Google Books tidak memiliki sampel pratinjau buku untuk ISBN ini.</div>
-        </div>
-
       </div>
 
     </div>
 
-    <!-- Right Column: Matriks Rekonsiliasi & Simpan Final -->
+    <!-- Right Column: Matriks Rekonsiliasi & Simpan Final Terpadu -->
     <div class="aac-col-right">
 
-      <!-- Panel 4: Matriks Komparasi Metadata -->
-      <div class="aac-card">
+      <div class="aac-card" style="margin-bottom:0;">
         <div class="aac-card-title">
-          <span>4. Matriks Rekonsiliasi & Pemeriksaan Metadata</span>
+          <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;">
+            <span>Matriks Pemeriksaan & Verifikasi Metadata</span>
+            <div class="aac-inline-stats" id="aac-inline-stats">
+              <span class="aac-mini-pill is-verified" title="Data Terverifikasi"><strong id="aac-stat-verified">0</strong> Terverifikasi</span>
+              <span class="aac-mini-pill is-conflict" title="Konflik Nilai"><strong id="aac-stat-conflict">0</strong> Konflik</span>
+              <span class="aac-mini-pill is-unverified" title="Hanya di Eksternal"><strong id="aac-stat-unverified">0</strong> Perpusnas</span>
+            </div>
+          </div>
+
           <div style="display:flex;gap:0.4rem;align-items:center;">
             <button type="button" class="aac-btn aac-btn-outline-primary aac-btn-sm" id="aac-btn-ai-classify" onclick="AAC.runAiClassification()" style="display:none;" title="Gunakan AI untuk menganalisis subjek dan menghasilkan nomor klasifikasi DDC">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-              <span>Analisis Klasifikasi AI</span>
+              <span>Analisis DDC</span>
             </button>
             <button type="button" class="aac-btn aac-btn-outline-primary aac-btn-sm" id="aac-btn-approve-all" onclick="AAC.approveAllExternal()" style="display:none;">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="20 6 9 17 4 12"></polyline></svg>
-              <span>Setujui Semua dari Perpusnas</span>
+              <span>Setujui Semua Perpusnas</span>
             </button>
           </div>
         </div>
-        <div id="aac-metadata-alert" style="display:none;"></div>
 
+        <div id="aac-metadata-alert" style="display:none;"></div>
+        <div id="aac-storage-alert" style="display:none;"></div>
+
+        <!-- Table Wrap -->
         <div class="aac-table-wrap">
-          <table class="aac-table">
+          <table class="aac-table" id="aac-main-table">
             <thead>
-              <tr>
+              <tr id="aac-table-header-row">
                 <th class="aac-field-cell">Field Metadata</th>
                 <th class="aac-source-cell">Katalog Perpusnas</th>
-                <th class="aac-source-cell">Bukti Fisik Buku</th>
+                <th class="aac-source-cell col-evidence" id="th-evidence">Bukti Fisik Buku</th>
                 <th class="aac-final-cell">Nilai Final (Disetujui)</th>
               </tr>
             </thead>
@@ -234,23 +191,22 @@ $apiBaseUrl = $adminWebBase . 'plugin_container.php?mod=bibliography&id=' . $men
             </tbody>
           </table>
         </div>
-      </div>
 
-      <!-- Panel 5: Penyimpanan SLiMS -->
-      <div class="aac-card" style="margin-bottom:0;">
-        <h2 class="aac-card-title">
-          <span>5. Simpan ke Database Bibliografi SLiMS</span>
-        </h2>
-        <div id="aac-storage-alert" style="display:none;"></div>
-        <p style="font-size:0.82rem;color:var(--aac-text-muted);margin-bottom:1rem;line-height:1.4;">
-          Penyimpanan akan memetakan seluruh metadata terverifikasi ke tabel <code>biblio</code>, menghubungkan master pengarang, penerbit, tempat terbit, topik/subjek, dan memperbarui indeks pencarian SLiMS secara otomatis.
-        </p>
-        <div style="display:flex;justify-content:flex-end;">
-          <button type="button" class="aac-btn aac-btn-success" id="aac-btn-save-slims">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
-            <span>Simpan Final ke SLiMS</span>
-          </button>
+        <!-- Integrated Bottom Action Bar -->
+        <div class="aac-table-footer-bar">
+          <div class="aac-footer-info">
+            <span id="aac-footer-summary-text" style="font-size:0.78rem;color:var(--aac-text-muted);">
+              Data akan dipetakan ke tabel <code>biblio</code>, menghubungkan master pengarang, penerbit, tempat terbit, topik, dan memperbarui indeks pencarian SLiMS.
+            </span>
+          </div>
+          <div class="aac-footer-action">
+            <button type="button" class="aac-btn aac-btn-success" id="aac-btn-save-slims">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+              <span>Simpan Final ke SLiMS</span>
+            </button>
+          </div>
         </div>
+
       </div>
 
     </div>
@@ -266,7 +222,7 @@ $apiBaseUrl = $adminWebBase . 'plugin_container.php?mod=bibliography&id=' . $men
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
             <span>Pengaturan & Konfigurasi Sistem</span>
           </h3>
-          <p class="aac-modal-subtitle">Atur preferensi model kecerdasan buatan, OCR, katalog eksternal, dan format nomor panggil.</p>
+          <p class="aac-modal-subtitle">Atur preferensi model kecerdasan buatan, Vision AI/OCR, katalog eksternal, dan format nomor panggil.</p>
         </div>
         <button type="button" class="aac-modal-close" onclick="AAC.closeSettings()" title="Tutup Pengaturan">&times;</button>
       </div>
@@ -288,8 +244,8 @@ $apiBaseUrl = $adminWebBase . 'plugin_container.php?mod=bibliography&id=' . $men
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
             </div>
             <div class="aac-tab-text">
-              <strong>Mesin OCR</strong>
-              <span>Tesseract OS & Bahasa</span>
+              <strong>Vision AI & OCR</strong>
+              <span>Baca Gambar & Tesseract</span>
             </div>
           </button>
           <button type="button" class="aac-tab-btn" id="tab-btn-catalog" onclick="AAC.switchTab('tab-catalog', this)">
@@ -318,7 +274,6 @@ $apiBaseUrl = $adminWebBase . 'plugin_container.php?mod=bibliography&id=' . $men
 
           <!-- TAB AI -->
           <div class="aac-tab-content active" id="tab-ai">
-            <!-- Global Mode & Provider Card -->
             <div class="aac-settings-card">
               <div class="aac-settings-card-header">
                 <span class="aac-settings-card-title">
@@ -332,7 +287,7 @@ $apiBaseUrl = $adminWebBase . 'plugin_container.php?mod=bibliography&id=' . $men
                   <select class="aac-input" id="cfg-ai-mode" onchange="AAC.onAiModeChange(this.value)">
                     <option value="local_only">Local-Only (Ollama Lokal Saja — Privasi Penuh)</option>
                     <option value="cloud">Cloud AI (OpenAI / 9Router / OpenRouter / Gemini)</option>
-                    <option value="hybrid">Hybrid (OCR Lokal + AI Pilihan Sesuai Kebutuhan)</option>
+                    <option value="hybrid">Hybrid (Vision AI / OCR + AI Pilihan Sesuai Kebutuhan)</option>
                     <option value="disabled">Disabled (Nonaktifkan AI, Gunakan Heuristik RegEx)</option>
                   </select>
                 </div>
@@ -412,28 +367,29 @@ $apiBaseUrl = $adminWebBase . 'plugin_container.php?mod=bibliography&id=' . $men
                 </div>
                 <div class="aac-form-group" style="margin-bottom:0;">
                   <label class="aac-form-label">Model Name</label>
-                  <input type="text" class="aac-input" id="cfg-cloud-model" placeholder="Contoh: gpt-4o-mini, glm-5.3-flash-free">
+                  <input type="text" class="aac-input" id="cfg-cloud-model" placeholder="Contoh: gpt-4o-mini, ag/gemini-3.8-flash-medium">
                 </div>
               </div>
               <div class="aac-test-result" id="res-test-cloud"></div>
             </div>
           </div>
 
-          <!-- TAB OCR -->
+          <!-- TAB OCR & VISION AI -->
           <div class="aac-tab-content" id="tab-ocr">
             <div class="aac-settings-card">
               <div class="aac-settings-card-header">
                 <span class="aac-settings-card-title">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V4h16v3M9 20h6M12 4v16"></path></svg>
-                  Pengaturan Mesin OCR Lokal
+                  Pengaturan Mesin Pembaca Gambar (Vision AI & OCR)
                 </span>
               </div>
               <div class="aac-form-grid-2">
                 <div class="aac-form-group">
-                  <label class="aac-form-label">Driver OCR Utama</label>
+                  <label class="aac-form-label">Driver Pembaca Gambar Utama</label>
                   <select class="aac-input" id="cfg-ocr-driver">
-                    <option value="auto">Auto (Deteksi Otomatis Tesseract OS / Python)</option>
-                    <option value="tesseract">Tesseract CLI</option>
+                    <option value="auto">Auto (Vision AI Multimodal + OCR Tesseract - Rekomendasi)</option>
+                    <option value="vision_ai">Vision AI Murni (Baca Gambar Langsung via AI - Tanpa Tesseract)</option>
+                    <option value="tesseract">Tesseract OCR Saja (CLI Lokal)</option>
                     <option value="python">Python Bridge (RapidOCR / Script)</option>
                   </select>
                 </div>
@@ -456,7 +412,7 @@ $apiBaseUrl = $adminWebBase . 'plugin_container.php?mod=bibliography&id=' . $men
 
             <div class="aac-mode-banner" style="background:#f8fafc;border-color:var(--aac-border);color:var(--aac-text);">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--aac-primary);"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-              <span>Tesseract mengekstraksi teks bukti fisik (halaman judul, copyright, daftar isi) secara lokal untuk diverifikasi pustakawan.</span>
+              <span>Vision AI memungkinkan AI multimodal (seperti <code>qwen3-vl</code> di Ollama atau <code>gpt-4o-mini</code> / <code>gemini-3.8-flash</code> di Cloud) membaca langsung tata letak buku, judul, dan KDT dari foto meskipun tanpa instalasi Tesseract.</span>
             </div>
           </div>
 
@@ -621,7 +577,7 @@ $apiBaseUrl = $adminWebBase . 'plugin_container.php?mod=bibliography&id=' . $men
     </div>
   </div>
 
-  <!-- Modal Panduan & Dokumentasi Lengkap -->
+  <!-- Modal Panduan -->
   <div class="aac-modal-overlay" id="aac-modal-guide" style="display:none;" onclick="if(event.target===this)AAC.closeGuide()">
     <div class="aac-modal aac-modal-guide">
       <div class="aac-modal-header">
@@ -670,8 +626,8 @@ $apiBaseUrl = $adminWebBase . 'plugin_container.php?mod=bibliography&id=' . $men
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
             </div>
             <div class="aac-tab-text">
-              <strong>3. Bukti Fisik & OCR</strong>
-              <span>Foto Efektif & Tesseract</span>
+              <strong>3. Bukti Fisik & Vision AI</strong>
+              <span>Foto Efektif & Multimodal</span>
             </div>
           </button>
 
@@ -691,7 +647,7 @@ $apiBaseUrl = $adminWebBase . 'plugin_container.php?mod=bibliography&id=' . $men
             </div>
             <div class="aac-tab-text">
               <strong>5. Solusi Kendala (FAQ)</strong>
-              <span>Timeout, 403 & Error</span>
+              <span>Timeout, 403 & Vision</span>
             </div>
           </button>
         </nav>
@@ -713,7 +669,7 @@ $apiBaseUrl = $adminWebBase . 'plugin_container.php?mod=bibliography&id=' . $men
               <div class="aac-step-body">
                 <div class="aac-step-title">Pencarian ISBN & Penarikan Metadata Otomatis</div>
                 <div class="aac-step-desc">
-                  Ketik 10 atau 13 digit nomor ISBN pada <em>Panel 1</em> lalu klik <strong>Cari Katalog</strong>. Sistem otomatis menarik rekaman bibliografi resmi dari <strong>Indonesia OneSearch (Perpusnas RI)</strong> dan menyinkronkan abstrak, sinopsis, serta cover dari <strong>Google Books API</strong>.
+                  Ketik nomor ISBN lalu klik <strong>Cari</strong>. Sistem menarik data bibliografi resmi dari <strong>Indonesia OneSearch</strong> dan menyinkronkan cover buku secara otomatis.
                 </div>
               </div>
             </div>
@@ -721,9 +677,9 @@ $apiBaseUrl = $adminWebBase . 'plugin_container.php?mod=bibliography&id=' . $men
             <div class="aac-step-card">
               <div class="aac-step-num">2</div>
               <div class="aac-step-body">
-                <div class="aac-step-title">Pengunggahan Foto Bukti Fisik Buku</div>
+                <div class="aac-step-title">Pengunggahan Foto Bukti Fisik Buku (Opsional)</div>
                 <div class="aac-step-desc">
-                  Pada <em>Panel 2</em>, pilih target halaman (Halaman Judul, Halaman Hak Cipta, atau Daftar Isi), lalu unggah atau seret foto fisik buku. Mesin OCR lokal (Tesseract / Vision AI) akan mengekstrak teks asli buku sebagai bukti otentik.
+                  Jika ingin memverifikasi dengan buku fisik, buka panel <em>2. Bukti Fisik Buku</em> lalu seret foto halaman judul, hak cipta (KDT), atau sinopsis. AI (Vision AI / OCR) otomatis mengekstrak teksnya saat foto selesai diunggah.
                 </div>
               </div>
             </div>
@@ -731,29 +687,9 @@ $apiBaseUrl = $adminWebBase . 'plugin_container.php?mod=bibliography&id=' . $men
             <div class="aac-step-card">
               <div class="aac-step-num">3</div>
               <div class="aac-step-body">
-                <div class="aac-step-title">Pemeriksaan Matriks Rekonsiliasi (Panel 4)</div>
+                <div class="aac-step-title">Pemeriksaan Matriks & Penyimpanan ke SLiMS</div>
                 <div class="aac-step-desc">
-                  Sistem menyandingkan data katalog eksternal (kolom kiri) dengan hasil ekstraksi bukti fisik (kolom tengah). Pustakawan cukup menekan tombol <strong>Pilih →</strong> untuk mengadopsi data, atau klik <strong>Setujui Semua dari Perpusnas</strong> untuk mempercepat proses.
-                </div>
-              </div>
-            </div>
-
-            <div class="aac-step-card">
-              <div class="aac-step-num">4</div>
-              <div class="aac-step-body">
-                <div class="aac-step-title">Analisis Klasifikasi DDC & Pilihan Sudut Pandang Multi-Subjek</div>
-                <div class="aac-step-desc">
-                  Untuk karya yang memiliki topik ganda atau interdisipliner, sistem AI akan menganalisis judul, abstrak, dan daftar isi untuk menyajikan beberapa kandidat nomor klasifikasi DDC beserta alasan sudut pandangnya. Pustakawan bebas menentukan nomor kelas yang paling tepat untuk perpustakaannya.
-                </div>
-              </div>
-            </div>
-
-            <div class="aac-step-card">
-              <div class="aac-step-num">5</div>
-              <div class="aac-step-body">
-                <div class="aac-step-title">Penyimpanan ke Pangkalan Data SLiMS</div>
-                <div class="aac-step-desc">
-                  Periksa ringkasan pada <em>Panel 3</em>. Jika semua field wajib telah terverifikasi, klik tombol <strong>Simpan ke Katalog SLiMS</strong>. Rekaman bibliografi, nomor panggil, tajuk pengarang, subjek, abstrak, dan berkas cover otomatis tersimpan di pangkalan data SLiMS.
+                  Tabel hanya menampilkan 9 <em>Data Utama</em> yang paling esensial. Anda dapat membuka <em>Field Tambahan</em> jika diperlukan, lalu klik tombol <strong>Simpan Final ke SLiMS</strong> di bagian bawah tabel.
                 </div>
               </div>
             </div>
@@ -775,100 +711,34 @@ $apiBaseUrl = $adminWebBase . 'plugin_container.php?mod=bibliography&id=' . $men
                 <span class="aac-badge aac-badge-success">Gratis & Privasi Penuh</span>
               </div>
               <p style="font-size:0.78rem;color:var(--aac-text-muted);line-height:1.5;margin-bottom:0.75rem;">
-                1. Unduh dan pasang Ollama untuk Windows dari situs resmi <strong>https://ollama.com</strong>.<br>
-                2. Buka PowerShell atau Command Prompt (CMD), lalu jalankan perintah berikut untuk mengunduh model AI:
+                Model Multimodal Vision yang sangat direkomendasikan untuk membaca langsung foto buku di Ollama:
               </p>
-
-              <div style="font-size:0.75rem;font-weight:600;color:var(--aac-text);">1. Model Cepat & Ringan untuk Klasifikasi Metadata Teks (Sangat Direkomendasikan):</div>
-              <div class="aac-code-snippet">
-                <code>ollama run gemma4:e4b</code>
-                <button type="button" class="aac-btn-copy-code" onclick="AAC.copyCommand('ollama run gemma4:e4b', this)">Salin</button>
-              </div>
-
-              <div style="font-size:0.75rem;font-weight:600;color:var(--aac-text);margin-top:0.6rem;">2. Alternatif Model Teks Ringan Lainnya:</div>
-              <div class="aac-code-snippet">
-                <code>ollama run llama3.2</code>
-                <button type="button" class="aac-btn-copy-code" onclick="AAC.copyCommand('ollama run llama3.2', this)">Salin</button>
-              </div>
-
-              <div style="font-size:0.75rem;font-weight:600;color:var(--aac-text);margin-top:0.6rem;">3. Model Multimodal Vision (Membaca Teks Langsung dari Foto Buku):</div>
               <div class="aac-code-snippet">
                 <code>ollama run qwen3-vl:8b</code>
                 <button type="button" class="aac-btn-copy-code" onclick="AAC.copyCommand('ollama run qwen3-vl:8b', this)">Salin</button>
               </div>
-
-              <div class="aac-mode-banner" style="background:#eff6ff;border-color:#bfdbfe;color:#1e40af;margin-top:0.75rem;">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-                <span><strong>Tips Performa:</strong> Model 8B lokal membutuhkan waktu inferensi 30–80 detik. Pastikan nilai Timeout cURL di Pengaturan AI disetel ke minimal <strong>120 detik</strong>.</span>
-              </div>
             </div>
 
             <div class="aac-settings-card">
               <div class="aac-settings-card-header">
-                <span class="aac-settings-card-title">B. Menggunakan Cloud AI / 9Router / OpenAI API</span>
+                <span class="aac-settings-card-title">B. Menggunakan Cloud AI (OpenAI / Gemini / 9Router)</span>
                 <span class="aac-badge aac-badge-info">Respon Sangat Cepat</span>
               </div>
               <p style="font-size:0.78rem;color:var(--aac-text-muted);line-height:1.5;margin-bottom:0.75rem;">
-                Jika Anda memiliki API Key OpenAI, 9Router, atau OpenRouter, ubah Mode AI menjadi <strong>Cloud AI</strong> di menu Pengaturan:
+                Dapat menggunakan model multimodal seperti <code>gpt-4o-mini</code> atau <code>gemini-2.5-flash</code>.
               </p>
-              <ul style="font-size:0.78rem;color:var(--aac-text-muted);line-height:1.6;margin:0 0 0.75rem 1.25rem;">
-                <li><strong>Base URL:</strong> <code>https://api.openai.com/v1</code> (atau <code>http://localhost:20128/v1</code> jika memakai 9Router)</li>
-                <li><strong>Model Name:</strong> <code>gpt-4o-mini</code>, <code>glm-5.3-flash-free</code>, atau <code>gemini-2.5-flash</code></li>
-              </ul>
-            </div>
-
-            <div style="text-align:right;margin-top:1rem;">
-              <button type="button" class="aac-btn aac-btn-primary" onclick="AAC.openSettingsFromGuide()">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-                <span>Buka Pengaturan AI Sekarang</span>
-              </button>
             </div>
           </article>
 
-          <!-- CHAPTER 3: OCR -->
+          <!-- CHAPTER 3: VISION AI & OCR -->
           <article class="aac-guide-chapter" id="guide-ch-ocr">
             <h2 class="aac-guide-h2">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
-              <span>Bab 3: Pengambilan Bukti Fisik & OCR Tesseract</span>
+              <span>Bab 3: Vision AI & Tesseract OCR</span>
             </h2>
             <p class="aac-guide-intro">
-              Kualitas hasil ekstraksi teks otomatis sangat bergantung pada ketajaman dan sudut pengambilan foto bukti fisik buku.
+              Fitur <strong>Vision AI</strong> memungkinkan model AI membaca langsung foto halaman buku tanpa mewajibkan instalasi Tesseract di Windows.
             </p>
-
-            <div class="aac-settings-card">
-              <div class="aac-settings-card-header">
-                <span class="aac-settings-card-title">Tips Pengambilan Foto Bukti Fisik yang Optimal</span>
-              </div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.85rem;">
-                <div style="border:1px solid var(--aac-border);padding:0.75rem;border-radius:8px;background:#f8fafc;">
-                  <strong style="font-size:0.8rem;color:var(--aac-text);display:block;margin-bottom:0.25rem;">✓ Sudut Tegak Lurus</strong>
-                  <span style="font-size:0.74rem;color:var(--aac-text-muted);line-height:1.45;display:block;">Posisikan kamera ponsel sejajar dan tegak lurus di atas permukaan kertas buku agar teks tidak terdistorsi atau melengkung.</span>
-                </div>
-                <div style="border:1px solid var(--aac-border);padding:0.75rem;border-radius:8px;background:#f8fafc;">
-                  <strong style="font-size:0.8rem;color:var(--aac-text);display:block;margin-bottom:0.25rem;">✓ Pencahayaan Merata</strong>
-                  <span style="font-size:0.74rem;color:var(--aac-text-muted);line-height:1.45;display:block;">Gunakan cahaya yang terang dan rata. Hindari bayangan tangan/ponsel dan pantulan kilau lampu (*glare*) pada kertas art paper.</span>
-                </div>
-                <div style="border:1px solid var(--aac-border);padding:0.75rem;border-radius:8px;background:#f8fafc;">
-                  <strong style="font-size:0.8rem;color:var(--aac-text);display:block;margin-bottom:0.25rem;">✓ Halaman Hak Cipta</strong>
-                  <span style="font-size:0.74rem;color:var(--aac-text-muted);line-height:1.45;display:block;">Halaman balik judul (Katalog Dalam Terbitan / KDT) memuat data paling lengkap: ISBN, Tahun Terbit, Kota Terbit, dan Nama Penerbit.</span>
-                </div>
-                <div style="border:1px solid var(--aac-border);padding:0.75rem;border-radius:8px;background:#f8fafc;">
-                  <strong style="font-size:0.8rem;color:var(--aac-text);display:block;margin-bottom:0.25rem;">✓ Daftar Isi / Sinopsis</strong>
-                  <span style="font-size:0.74rem;color:var(--aac-text-muted);line-height:1.45;display:block;">Unggah foto daftar isi atau sampul belakang (blurb) agar AI dapat membaca abstrak serta topik bahasan buku secara akurat.</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="aac-settings-card">
-              <div class="aac-settings-card-header">
-                <span class="aac-settings-card-title">Konfigurasi Tesseract OCR di Windows</span>
-              </div>
-              <p style="font-size:0.78rem;color:var(--aac-text-muted);line-height:1.5;">
-                Plugin ini secara bawaan mendeteksi instalasi Tesseract di lingkungan Windows / Laragon.<br>
-                Jika Anda menginstal Tesseract di direktori kustom, buka tab <strong>Mesin OCR</strong> di Pengaturan dan masukkan path lengkap binary, contoh:<br>
-                <code>C:\Program Files\Tesseract-OCR\tesseract.exe</code>
-              </p>
-            </div>
           </article>
 
           <!-- CHAPTER 4: CALL NUMBER & PERPUSNAS -->
@@ -877,51 +747,20 @@ $apiBaseUrl = $adminWebBase . 'plugin_container.php?mod=bibliography&id=' . $men
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
               <span>Bab 4: Format Nomor Panggil & Standar Perpusnas RI</span>
             </h2>
-            <p class="aac-guide-intro">
-              Panduan lengkap aturan baku penulisan nomor panggil (<em>call number</em>) koleksi menurut pedoman Perpustakaan Nasional RI dan cara kustomisasi polanya di SLiMS.
-            </p>
-
             <div class="aac-settings-card">
               <div class="aac-settings-card-header">
                 <span class="aac-settings-card-title">Standar Baku Perpustakaan Nasional RI</span>
                 <span class="aac-badge aac-badge-info">Pola Baku: {class} {author} {title}</span>
               </div>
-              <p style="font-size:0.78rem;color:var(--aac-text-muted);line-height:1.5;margin-bottom:0.75rem;">
-                Menurut standar pengolahan bahan perpustakaan Perpusnas RI, nomor panggil terdiri dari 3 unsur utama yang dipisahkan oleh spasi:
-              </p>
               <div style="background:#f8fafc;border:1px solid var(--aac-border);border-radius:8px;padding:0.85rem;margin-bottom:0.75rem;">
                 <div style="font-family:monospace;font-size:1.1rem;font-weight:700;color:var(--aac-primary);margin-bottom:0.5rem;">
                   495.1 LIL b
                 </div>
                 <div style="font-size:0.78rem;color:var(--aac-text);line-height:1.6;">
-                  • <code>495.1</code> = <strong>Nomor Klasifikasi DDC</strong> (Dewey Decimal Classification) untuk Bahasa Mandarin.<br>
-                  • <code>LIL</code> = <strong>Tiga Huruf Pertama Pengarang</strong> (Lily Thamrin) ditulis dalam huruf <strong>KAPITAL</strong>.<br>
-                  • <code>b</code> = <strong>Satu Huruf Pertama Judul</strong> (Belajar Bahasa Mandarin) ditulis dalam huruf <strong>KECIL</strong> (mengabaikan kata sandang <em>The, A, An, Sang, Si</em>).
+                  • <code>495.1</code> = <strong>Nomor Klasifikasi DDC</strong>.<br>
+                  • <code>LIL</code> = <strong>3 Huruf Pertama Pengarang (KAPITAL)</strong>.<br>
+                  • <code>b</code> = <strong>1 Huruf Pertama Judul (KECIL)</strong>.
                 </div>
-              </div>
-            </div>
-
-            <div class="aac-settings-card">
-              <div class="aac-settings-card-header">
-                <span class="aac-settings-card-title">Kustomisasi Pola Nomor Panggil untuk Perpustakaan Anda</span>
-              </div>
-              <p style="font-size:0.78rem;color:var(--aac-text-muted);line-height:1.5;margin-bottom:0.75rem;">
-                Setiap perpustakaan memiliki kebijakan penomoran yang berbeda. Anda dapat menyusun pola kustom di tab <strong>Nomor Panggil & Klasifikasi</strong> menggunakan kombinasi token berikut:
-              </p>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;font-size:0.76rem;">
-                <div style="padding:0.4rem 0.6rem;background:#f8fafc;border:1px solid var(--aac-border);border-radius:6px;"><code>{class}</code> : Nomor Klasifikasi DDC</div>
-                <div style="padding:0.4rem 0.6rem;background:#f8fafc;border:1px solid var(--aac-border);border-radius:6px;"><code>{author}</code> : 3 Huruf Pengarang (Kapital)</div>
-                <div style="padding:0.4rem 0.6rem;background:#f8fafc;border:1px solid var(--aac-border);border-radius:6px;"><code>{title}</code> : 1 Huruf Judul (Kecil)</div>
-                <div style="padding:0.4rem 0.6rem;background:#f8fafc;border:1px solid var(--aac-border);border-radius:6px;"><code>{year}</code> : Tahun Terbit (Contoh: 2024)</div>
-                <div style="padding:0.4rem 0.6rem;background:#f8fafc;border:1px solid var(--aac-border);border-radius:6px;"><code>{edition}</code> : Edisi/Cetakan (Contoh: Cet. 1)</div>
-                <div style="padding:0.4rem 0.6rem;background:#f8fafc;border:1px solid var(--aac-border);border-radius:6px;"><code>{publisher}</code> : Kode Singkat Penerbit</div>
-                <div style="padding:0.4rem 0.6rem;background:#f8fafc;border:1px solid var(--aac-border);border-radius:6px;"><code>{copy}</code> : Nomor Eksemplar (c.1)</div>
-                <div style="padding:0.4rem 0.6rem;background:#f8fafc;border:1px solid var(--aac-border);border-radius:6px;"><code>{item_code}</code> : Barcode Koleksi</div>
-              </div>
-
-              <div style="margin-top:0.75rem;padding:0.75rem;background:#eff6ff;border-radius:8px;font-size:0.76rem;color:#1e40af;">
-                <strong>Contoh Kombinasi Perpustakaan Kampus:</strong><br>
-                Pola: <code>{class}/{author}/{title}/{year} {copy}</code> → Hasil: <code>495.1/LIL/b/2024 c.1</code>
               </div>
             </div>
           </article>
@@ -932,51 +771,13 @@ $apiBaseUrl = $adminWebBase . 'plugin_container.php?mod=bibliography&id=' . $men
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
               <span>Bab 5: Solusi Kendala & Troubleshooting (FAQ)</span>
             </h2>
-            <p class="aac-guide-intro">
-              Daftar pertanyaan umum, penjelasan penyebab, serta panduan praktis mengatasi kendala teknis dalam operasional sistem.
-            </p>
-
             <div class="aac-guide-faq-item">
               <div class="aac-guide-faq-q">
-                <span class="aac-badge aac-badge-warning" style="font-size:0.65rem;">FAQ 1</span>
-                <span>Mengapa proses klasifikasi AI terasa lama atau muncul error "Operation timed out"?</span>
+                <span class="aac-badge aac-badge-warning" style="font-size:0.65rem;">FAQ</span>
+                <span>Mengapa upload foto tidak memunculkan teks jika belum pasang Tesseract?</span>
               </div>
               <div class="aac-guide-faq-a">
-                <strong>Penyebab:</strong> Model AI lokal berukuran 8B (seperti <code>qwen3-vl:8b</code>) membutuhkan waktu komputasi mendalam pada hardware Anda.<br>
-                <strong>Solusi:</strong> Buka Pengaturan AI, naikkan batas waktu timeout menjadi <strong>120 detik</strong> atau <strong>180 detik</strong>. Sebagai alternatif, pasang model teks cepat seperti <code>ollama run gemma4:e4b</code> yang dapat menyelesaikan klasifikasi dalam 10 detik.
-              </div>
-            </div>
-
-            <div class="aac-guide-faq-item">
-              <div class="aac-guide-faq-q">
-                <span class="aac-badge aac-badge-warning" style="font-size:0.65rem;">FAQ 2</span>
-                <span>Mengapa Perpusnas OPAC SRU menampilkan status "HTTP 403 / Cloudflare Challenge"?</span>
-              </div>
-              <div class="aac-guide-faq-a">
-                <strong>Penyebab:</strong> Pangkalan data OPAC Perpusnas dilindungi Web Application Firewall Cloudflare yang terkadang memblokir lalu lintas otomatis.<br>
-                <strong>Solusi:</strong> Jangan khawatir! Plugin ini secara otomatis menggunakan <strong>Indonesia OneSearch (Perpusnas)</strong> yang terhubung langsung ke REST API Union Catalog nasional dan 100% bebas dari blokir Cloudflare.
-              </div>
-            </div>
-
-            <div class="aac-guide-faq-item">
-              <div class="aac-guide-faq-q">
-                <span class="aac-badge aac-badge-warning" style="font-size:0.65rem;">FAQ 3</span>
-                <span>Mengapa tombol "Simpan ke Katalog SLiMS" tidak bisa diklik / nonaktif?</span>
-              </div>
-              <div class="aac-guide-faq-a">
-                <strong>Penyebab:</strong> Masih terdapat field data wajib yang berstatus konflik atau belum disetujui pustakawan.<br>
-                <strong>Solusi:</strong> Periksa Matriks Rekonsiliasi pada Panel 4. Pastikan field utama seperti <em>Judul Buku</em>, <em>Pengarang</em>, dan <em>Nomor Klasifikasi</em> sudah disetujui (memiliki tanda centang hijau pada nilai final).
-              </div>
-            </div>
-
-            <div class="aac-guide-faq-item">
-              <div class="aac-guide-faq-q">
-                <span class="aac-badge aac-badge-warning" style="font-size:0.65rem;">FAQ 4</span>
-                <span>Hasil OCR Tesseract kosong atau teks yang terbaca berantakan?</span>
-              </div>
-              <div class="aac-guide-faq-a">
-                <strong>Penyebab:</strong> Foto bukti fisik terlalu gelap, miring ekstrim, atau resolusi kamera buram.<br>
-                <strong>Solusi:</strong> Ambil ulang foto dengan pencahayaan terang dan sudut tegak lurus. Jika perlu, pustakawan dapat langsung mengetik atau mengedit teks hasil pembacaan pada kolom bukti fisik secara manual.
+                Jika Tesseract belum terpasang di komputer, pilih driver <strong>Vision AI</strong> di Pengaturan OCR. AI akan membaca foto buku secara langsung! Anda juga bisa mengklik foto bukti fisik dan mengedit teksnya secara manual.
               </div>
             </div>
           </article>
@@ -993,11 +794,11 @@ $apiBaseUrl = $adminWebBase . 'plugin_container.php?mod=bibliography&id=' . $men
     </div>
   </div>
 
-  <!-- Modal Preview Bukti Fisik -->
+  <!-- Modal Preview & Edit Bukti Fisik -->
   <div class="aac-modal-overlay" id="aac-modal-evidence" style="display:none;" onclick="if(event.target===this)AAC.closePreview()">
     <div class="aac-modal" style="max-width:760px;">
       <div class="aac-modal-header">
-        <h3 id="aac-preview-title">Pratinjau Bukti Fisik Buku</h3>
+        <h3 id="aac-preview-title">Pratinjau & Koreksi Bukti Fisik Buku</h3>
         <button type="button" class="aac-modal-close" onclick="AAC.closePreview()">&times;</button>
       </div>
       <div class="aac-modal-body" style="display:flex;gap:1.25rem;flex-wrap:wrap;">
@@ -1007,16 +808,19 @@ $apiBaseUrl = $adminWebBase . 'plugin_container.php?mod=bibliography&id=' . $men
         </div>
         <div style="flex:1.2;min-width:260px;display:flex;flex-direction:column;">
           <label class="aac-form-label" style="display:flex;justify-content:space-between;align-items:center;">
-            <span>Teks Hasil Ekstraksi OCR:</span>
-            <button type="button" class="aac-btn aac-btn-secondary aac-btn-sm" onclick="AAC.copyOcrText()">Salin Teks</button>
+            <span>Teks Hasil Ekstraksi (Bisa Diedit Manual):</span>
+            <div style="display:flex;gap:0.3rem;">
+              <button type="button" class="aac-btn aac-btn-secondary aac-btn-sm" onclick="AAC.copyOcrText()">Salin</button>
+              <button type="button" class="aac-btn aac-btn-primary aac-btn-sm" id="btn-save-ocr-text" onclick="AAC.saveOcrTextEdit()">Simpan Teks</button>
+            </div>
           </label>
-          <textarea id="aac-preview-ocr" class="aac-input" style="flex:1;min-height:220px;font-family:monospace;font-size:0.78rem;line-height:1.45;resize:vertical;" readonly></textarea>
+          <textarea id="aac-preview-ocr" class="aac-input" style="flex:1;min-height:220px;font-family:monospace;font-size:0.78rem;line-height:1.45;resize:vertical;" placeholder="Ketik atau edit teks yang tertera pada halaman buku di sini..."></textarea>
         </div>
       </div>
       <div class="aac-modal-footer" style="justify-content:space-between;">
         <button type="button" class="aac-btn aac-btn-sm" style="background:#fee2e2;color:#991b1b;border:1px solid #fecdd3;" id="aac-btn-delete-current-evidence" onclick="AAC.deleteCurrentPreviewEvidence()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-          Hapus Foto Bukti Ini
+          Hapus Foto Ini
         </button>
         <button type="button" class="aac-btn aac-btn-secondary" onclick="AAC.closePreview()">Tutup</button>
       </div>
@@ -1031,8 +835,5 @@ $apiBaseUrl = $adminWebBase . 'plugin_container.php?mod=bibliography&id=' . $men
     pluginBase: '<?= $pluginWebBase ?>',
     slimsBase: '<?= (defined('SWB') ? rtrim(SWB, '/') : '') . '/' ?>'
   };
-  if (window.AAC && typeof window.AAC.init === 'function') {
-    window.AAC.init();
-  }
 </script>
-<script src="<?= $pluginWebBase ?>assets/js/app.js?v=3.2"></script>
+<script src="<?= $pluginWebBase ?>assets/js/app.js?v=3.3"></script>

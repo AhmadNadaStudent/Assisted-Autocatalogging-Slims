@@ -36,12 +36,21 @@ class OllamaAdapter implements AiProviderInterface
     {
         $model = $options['model'] ?? $this->model;
         $url = $this->baseUrl . '/api/chat';
+        $images = $options['images'] ?? []; // Array of base64 encoded strings
+
+        $userMessage = [
+            'role' => 'user',
+            'content' => $userPrompt,
+        ];
+        if (!empty($images) && is_array($images)) {
+            $userMessage['images'] = array_values($images);
+        }
 
         $payload = [
             'model' => $model,
             'messages' => [
                 ['role' => 'system', 'content' => $systemPrompt],
-                ['role' => 'user', 'content' => $userPrompt],
+                $userMessage,
             ],
             'format' => 'json',
             'stream' => false,
@@ -50,19 +59,29 @@ class OllamaAdapter implements AiProviderInterface
             ],
         ];
 
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => json_encode($payload),
-            CURLOPT_TIMEOUT => $this->timeout,
-            CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
-        ]);
+        $execCall = function(array $data) use ($url) {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => json_encode($data),
+                CURLOPT_TIMEOUT => $this->timeout,
+                CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+            ]);
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlError = curl_error($ch);
+            curl_close($ch);
+            return [$response, $httpCode, $curlError];
+        };
 
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $curlError = curl_error($ch);
-        curl_close($ch);
+        list($response, $httpCode, $curlError) = $execCall($payload);
+
+        // If multimodal request failed (e.g. model does not support images), retry once with text-only
+        if (($response === false || $httpCode !== 200) && !empty($images)) {
+            unset($payload['messages'][1]['images']);
+            list($response, $httpCode, $curlError) = $execCall($payload);
+        }
 
         if ($response === false || $httpCode !== 200) {
             return [

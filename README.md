@@ -84,7 +84,7 @@ git clone https://github.com/AhmadNadaStudent/Assisted-Autocatalogging-Slims.git
 ```
 
 ### Cara 2: Ekstrak Berkas ZIP Rilis
-1. Unduh paket rilis **`assisted_autocatalogging-v1.0.0.zip`** dari menu [Releases](https://github.com/AhmadNadaStudent/Assisted-Autocatalogging-Slims/releases).
+1. Unduh paket rilis **`assisted_autocatalogging-v1.1.0.zip`** dari menu [Releases](https://github.com/AhmadNadaStudent/Assisted-Autocatalogging-Slims/releases) atau dari direktori `packages/`.
 2. Ekstrak berkas zip tersebut ke dalam direktori:
    ```text
    <slims_root>/plugins/assisted_autocatalogging/

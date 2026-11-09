@@ -10,22 +10,22 @@ class PromptTemplates
     {
         return <<<PROMPT
 Anda adalah asisten ahli katalogisasi perpustakaan berstandar AACR2 / RDA untuk sistem SLiMS (Senayan Library Management System).
-Tugas Anda adalah mengekstraksi informasi bibliografi buku dari bukti teks OCR yang diberikan.
+Tugas Anda adalah mengekstraksi informasi bibliografi buku dari bukti fisik (gambar foto halaman buku dan/atau teks hasil OCR) yang diberikan.
 
 ATURAN KETAT:
-1. DILARANG MENGARANG ATAU MENAMBAHKAN DATA YANG TIDAK DITEMUKAN PADA TEKS BUKTI.
-2. Jika suatu field informasi tidak ada pada teks bukti, isi nilai field tersebut dengan null.
-3. Anda TIDAK MEMILIKI WEWENANG untuk memvalidasi atau memverifikasi data. Anda hanya menghasilkan nilai KANDIDAT dari bukti fisik.
+1. DILARANG MENGARANG ATAU MENAMBAHKAN DATA YANG TIDAK DITEMUKAN PADA GAMBAR ATAU TEKS BUKTI.
+2. Jika suatu field informasi tidak ada pada bukti fisik, isi nilai field tersebut dengan null.
+3. Anda TIDAK MEMILIKI WEWENANG untuk memvalidasi atau memverifikasi data. Anda hanya menghasilkan nilai KANDIDAT dari bukti fisik buku.
 4. Identifikasi:
-   - title (Judul utama)
-   - sor (Pernyataan tanggung jawab / Statement of Responsibility, misal: "oleh John Doe ; diterjemahkan oleh Budi")
-   - authors (Array nama pengarang / kontributor)
+   - title (Judul utama buku)
+   - sor (Pernyataan tanggung jawab / Statement of Responsibility, misal: "oleh John Doe ; disunting oleh Budi")
+   - authors (Array nama pengarang / kontributor utama)
    - publisher (Nama penerbit)
    - publish_place (Kota tempat terbit)
-   - publish_year (Tahun terbit / hak cipta)
+   - publish_year (Tahun terbit / hak cipta 4 digit)
    - edition (Edisi / cetakan, misal: "Cetakan ke-2", "Edisi Revisi")
    - isbn (Nomor ISBN jika terbaca)
-   - collation (Deskripsi fisik / jumlah halaman / ilustrasi / ukuran cm jika terbaca)
+   - collation (Deskripsi fisik / jumlah halaman / ukuran cm jika terbaca)
    - series_title (Judul seri jika ada)
    - subjects (Topik atau subjek bahasan utama buku)
    - notes (Abstrak / Sinopsis / ringkasan isi buku jika ditemukan pada teks bukti seperti sampul belakang, halaman pengantar, atau blurb buku)
@@ -46,7 +46,7 @@ PROMPT;
 
     public static function buildUserPrompt(array $evidenceItems, ?array $externalMetadata = null, array $contextSources = ['title', 'abstract', 'toc', 'subjects']): string
     {
-        $prompt = "Berikut adalah bukti fisik hasil OCR dari halaman-halaman buku yang diperiksa:\n\n";
+        $prompt = "Berikut adalah bukti fisik (gambar foto halaman buku dan teks OCR) dari buku yang diperiksa:\n\n";
 
         foreach ($evidenceItems as $item) {
             $id = $item['evidence_id'] ?? 'evidence-unknown';
@@ -59,7 +59,7 @@ PROMPT;
             }
 
             $prompt .= "=== BUKTI ID: {$id} (Halaman: {$pageType}) ===\n";
-            $prompt .= empty($text) ? "[Teks tidak terbaca / kosong]\n\n" : "{$text}\n\n";
+            $prompt .= empty($text) ? "[Teks OCR belum terdeteksi - silakan baca langsung dari gambar terlampir jika model Anda mendukung Vision]\n\n" : "{$text}\n\n";
         }
 
         if (!empty($externalMetadata)) {

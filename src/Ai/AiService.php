@@ -71,7 +71,37 @@ class AiService
         $systemPrompt = PromptTemplates::getSystemPrompt();
         $userPrompt = PromptTemplates::buildUserPrompt($evidenceItems, $externalMetadata, $contextSources);
 
-        $completion = $provider->complete($systemPrompt, $userPrompt);
+        // Prepare multimodal images if Vision AI / Auto is enabled
+        $options = [];
+        $ocrDriver = $this->app->getConfig('ocr.driver', 'auto');
+        if (in_array($ocrDriver, ['auto', 'vision_ai'])) {
+            $base64Images = [];
+            $uploadDir = $this->app->getStoragePath('uploads');
+            $thumbDir = $this->app->getStoragePath('uploads/thumbs');
+
+            foreach ($evidenceItems as $ev) {
+                $filePath = '';
+                // Prefer thumbnail or full image
+                if (!empty($ev['thumb_name']) && file_exists($thumbDir . '/' . $ev['thumb_name'])) {
+                    $filePath = $thumbDir . '/' . $ev['thumb_name'];
+                } elseif (!empty($ev['file_name']) && file_exists($uploadDir . '/' . $ev['file_name'])) {
+                    $filePath = $uploadDir . '/' . $ev['file_name'];
+                }
+
+                if ($filePath && file_exists($filePath)) {
+                    $imgData = @file_get_contents($filePath);
+                    if ($imgData !== false && strlen($imgData) > 0) {
+                        $base64Images[] = base64_encode($imgData);
+                    }
+                }
+            }
+
+            if (!empty($base64Images)) {
+                $options['images'] = $base64Images;
+            }
+        }
+
+        $completion = $provider->complete($systemPrompt, $userPrompt, $options);
 
         if ($completion['success'] && is_array($completion['parsed_json'])) {
             $normalized = SchemaValidator::validateAndNormalize($completion['parsed_json'], $validEvidenceIds);
